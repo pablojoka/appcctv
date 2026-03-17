@@ -31,8 +31,14 @@ router.get('/', authMiddleware, (req, res) => {
   res.json(tutorials);
 });
 
-// GET single tutorial file (stream PDF)
-router.get('/:id/file', authMiddleware, (req, res) => {
+// GET single tutorial file (stream PDF) — accepts token as query param for iframe embed
+router.get('/:id/file', (req, res) => {
+  const jwt = require('jsonwebtoken');
+  const token = req.headers.authorization?.split(' ')[1] || req.query.token;
+  if (!token) return res.status(401).json({ error: 'Token requerido' });
+  try { jwt.verify(token, process.env.JWT_SECRET || 'congress_secret_2024'); }
+  catch { return res.status(401).json({ error: 'Token inválido' }); }
+
   const tutorial = db.prepare('SELECT * FROM tutorials WHERE id = ?').get(req.params.id);
   if (!tutorial) return res.status(404).json({ error: 'Tutorial no encontrado' });
 

@@ -72,4 +72,7 @@ export const createReport = (data) => api.post('/reports', data);
 export const getTutorials = () => api.get('/tutorials');
 export const uploadTutorial = (formData) => api.post('/tutorials', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
 export const deleteTutorial = (id) => api.delete(`/tutorials/${id}`);
-export const getTutorialFileUrl = (id) => `/api/tutorials/${id}/file`;
+export const getTutorialFileUrl = (id) => {
+  const token = localStorage.getItem('token');
+  return `/api/tutorials/${id}/file${token ? `?token=${token}` : ''}`;
+};

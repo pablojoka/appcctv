@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
-  LayoutDashboard, Calendar, Package, Users, FileText, BookOpen, LogOut, Cctv, Menu, X
+  LayoutDashboard, Calendar, Package, Users, FileText, BookOpen, LogOut, Menu, X
 } from 'lucide-react';
 
 const navItems = [
@@ -32,19 +32,9 @@ export default function Layout() {
         {/* Logo */}
         <div style={{ padding: '24px 20px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{
-              width: 36, height: 36, background: 'var(--accent-dim)', border: '1px solid var(--accent)',
-              borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center'
-            }}>
-              <Cctv size={18} color="var(--accent)" />
-            </div>
-            <div>
-              <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.95rem', letterSpacing: '-0.02em' }}>
-                Congress
-              </div>
-              <div style={{ fontSize: '0.7rem', color: 'var(--accent)', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-                CCTV
-              </div>
+            <img src="/logo.jpg" alt="Logo" style={{ height: 40, width: 'auto', borderRadius: 6, objectFit: 'contain' }} />
+            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '1rem', letterSpacing: '0.04em', lineHeight: 1.1 }}>
+              CCTV/<span style={{ color: 'var(--accent)' }}>VMIX</span>
             </div>
           </div>
           <button className="btn-icon sidebar-close" onClick={closeSidebar}>
@@ -103,13 +93,10 @@ export default function Layout() {
             <Menu size={20} />
           </button>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{
-              width: 28, height: 28, background: 'var(--accent-dim)', border: '1px solid var(--accent)',
-              borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center'
-            }}>
-              <Cctv size={14} color="var(--accent)" />
+            <img src="/logo.jpg" alt="Logo" style={{ height: 32, width: 'auto', borderRadius: 4, objectFit: 'contain' }} />
+            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.9rem', letterSpacing: '0.04em' }}>
+              CCTV/<span style={{ color: 'var(--accent)' }}>VMIX</span>
             </div>
-            <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.9rem' }}>Congress CCTV</span>
           </div>
           <div style={{ width: 36 }} />
         </div>
