@@ -261,6 +261,9 @@ export default function EventDetail() {
   // Checkout dropdown state
   const [checkoutOpen, setCheckoutOpen] = useState(null); // equipment id
 
+  // Bulk checkout state
+  const [selectedForCheckout, setSelectedForCheckout] = useState(new Set());
+
   const loadPhotos = () => {
     setPhotoLoading(true);
     getEventPhotos(id)
@@ -373,6 +376,42 @@ export default function EventDetail() {
       setCheckoutOpen(null);
       load();
     } catch { toast.error('Error al actualizar estado'); }
+  };
+
+  const toggleCheckoutSelection = (eqId) => {
+    setSelectedForCheckout(prev => {
+      const next = new Set(prev);
+      if (next.has(eqId)) next.delete(eqId); else next.add(eqId);
+      return next;
+    });
+  };
+
+  const toggleRoomSelection = (room) => {
+    const roomIds = room.equipment?.map(e => e.id) || [];
+    const allSelected = roomIds.every(id => selectedForCheckout.has(id));
+    setSelectedForCheckout(prev => {
+      const next = new Set(prev);
+      if (allSelected) roomIds.forEach(id => next.delete(id));
+      else roomIds.forEach(id => next.add(id));
+      return next;
+    });
+  };
+
+  const handleBulkCheckout = async (newStatus) => {
+    if (!selectedForCheckout.size) return;
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      await Promise.all([...selectedForCheckout].map(eqId =>
+        updateEquipmentCheckout(eqId, {
+          checkout_status: newStatus,
+          fecha_entrega: newStatus === 'entregado' ? today : null,
+          fecha_devolucion: newStatus === 'devuelto' ? today : null,
+        })
+      ));
+      toast.success(`${selectedForCheckout.size} equipo${selectedForCheckout.size > 1 ? 's' : ''} → ${CHECKOUT_LABELS[newStatus]}`);
+      setSelectedForCheckout(new Set());
+      load();
+    } catch { toast.error('Error al actualizar estados'); }
   };
 
   const handlePhotoUpload = async (e) => {
@@ -610,6 +649,52 @@ export default function EventDetail() {
         <div className="card empty-state"><p>Sin salas. {isAdmin && 'Agregá una sala para comenzar.'}</p></div>
       )}
 
+      {/* Bulk checkout action bar */}
+      {isAdmin && selectedForCheckout.size > 0 && (
+        <div style={{
+          position: 'sticky', top: 12, zIndex: 50,
+          display: 'flex', alignItems: 'center', gap: 10,
+          background: 'var(--bg-card)', border: '1px solid var(--accent)',
+          borderRadius: 'var(--radius)', padding: '10px 16px',
+          marginBottom: 16, boxShadow: '0 4px 18px rgba(0,0,0,0.3)',
+        }}>
+          <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--accent)', flex: 1 }}>
+            {selectedForCheckout.size} equipo{selectedForCheckout.size > 1 ? 's' : ''} seleccionado{selectedForCheckout.size > 1 ? 's' : ''}
+          </span>
+          {CHECKOUT_OPTS.map(opt => {
+            const oc = CHECKOUT_COLORS[opt];
+            const OIcon = CHECKOUT_ICONS[opt];
+            return (
+              <button
+                key={opt}
+                onClick={() => handleBulkCheckout(opt)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  padding: '5px 12px', borderRadius: 20, cursor: 'pointer',
+                  border: `1px solid ${oc.border}`,
+                  background: oc.bg, color: oc.color,
+                  fontSize: '0.78rem', fontWeight: 700,
+                }}
+              >
+                {OIcon && <OIcon size={12} />}
+                {CHECKOUT_LABELS[opt]}
+              </button>
+            );
+          })}
+          <button
+            onClick={() => setSelectedForCheckout(new Set())}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 4,
+              padding: '5px 10px', borderRadius: 20, cursor: 'pointer',
+              border: '1px solid var(--border)', background: 'transparent',
+              color: 'var(--text-muted)', fontSize: '0.78rem',
+            }}
+          >
+            <X size={12} /> Deseleccionar
+          </button>
+        </div>
+      )}
+
       {event.rooms?.map(room => (
         <div key={room.id} className="card" style={{ marginBottom: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
@@ -629,6 +714,15 @@ export default function EventDetail() {
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  {isAdmin && room.equipment?.length > 0 && (
+                    <input
+                      type="checkbox"
+                      checked={room.equipment.every(e => selectedForCheckout.has(e.id))}
+                      onChange={() => toggleRoomSelection(room)}
+                      title="Seleccionar todos en esta sala"
+                      style={{ cursor: 'pointer', accentColor: 'var(--accent)', width: 14, height: 14 }}
+                    />
+                  )}
                   <Package size={13} /> Equipos ({room.equipment?.length || 0})
                 </div>
                 {isAdmin && (
@@ -644,7 +738,15 @@ export default function EventDetail() {
                 const csColors = CHECKOUT_COLORS[cs] || CHECKOUT_COLORS.pendiente;
                 const CsIcon = CHECKOUT_ICONS[cs];
                 return (
-                  <div key={eq.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: 'var(--bg-elevated)', borderRadius: 8, marginBottom: 6 }}>
+                  <div key={eq.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: selectedForCheckout.has(eq.id) ? 'rgba(var(--accent-rgb, 48,128,224),0.08)' : 'var(--bg-elevated)', borderRadius: 8, marginBottom: 6, outline: selectedForCheckout.has(eq.id) ? '1px solid rgba(48,128,224,0.35)' : 'none' }}>
+                    {isAdmin && (
+                      <input
+                        type="checkbox"
+                        checked={selectedForCheckout.has(eq.id)}
+                        onChange={() => toggleCheckoutSelection(eq.id)}
+                        style={{ cursor: 'pointer', accentColor: 'var(--accent)', marginRight: 8, flexShrink: 0, width: 14, height: 14 }}
+                      />
+                    )}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{eq.equipo_nombre}</div>
                       <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{eq.categoria} · x{eq.cantidad}</div>

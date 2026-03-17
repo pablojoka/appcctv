@@ -4,7 +4,6 @@ import { useAuth } from '../context/AuthContext';
 import {
   LayoutDashboard, Calendar, Package, Users, FileText, BookOpen, LogOut, Menu, X, BarChart2
 } from 'lucide-react';
-import NotificationBell from './NotificationBell';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard', exact: true },
@@ -39,12 +38,9 @@ export default function Layout() {
               CCTV/<span style={{ color: 'var(--accent)' }}>VMIX</span>
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <NotificationBell />
-            <button className="btn-icon sidebar-close" onClick={closeSidebar}>
-              <X size={16} />
-            </button>
-          </div>
+          <button className="btn-icon sidebar-close" onClick={closeSidebar}>
+            <X size={16} />
+          </button>
         </div>
 
         {/* Nav */}
@@ -103,7 +99,7 @@ export default function Layout() {
               CCTV/<span style={{ color: 'var(--accent)' }}>VMIX</span>
             </div>
           </div>
-          <NotificationBell />
+          <div style={{ width: 36 }} />
         </div>
 
         <div className="layout-content">
