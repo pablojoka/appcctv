@@ -13,8 +13,9 @@ db.pragma('foreign_keys = ON');
 
 console.log('✅ Connected to SQLite database');
 
-// Migrate: add hora_ingreso to events if not exists
+// Migrations
 try { db.exec('ALTER TABLE events ADD COLUMN hora_ingreso TEXT'); } catch {}
+try { db.exec('ALTER TABLE events ADD COLUMN color TEXT'); } catch {}
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
@@ -54,7 +55,7 @@ db.exec(`
     fecha_armado DATE,
     fecha_inicio DATE NOT NULL,
     fecha_finalizacion DATE NOT NULL,
-    estado TEXT DEFAULT 'pendiente',
+    estado TEXT DEFAULT 'a_confirmar',
     notas TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );

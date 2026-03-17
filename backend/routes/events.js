@@ -59,7 +59,7 @@ router.get('/:id', authMiddleware, (req, res) => {
 
 // POST create event (admin only)
 router.post('/', authMiddleware, adminOnly, (req, res) => {
-  const { numero_orden, nombre, cliente, ubicacion, fecha_armado, fecha_inicio, fecha_finalizacion, hora_ingreso, notas } = req.body;
+  const { numero_orden, nombre, cliente, ubicacion, fecha_armado, fecha_inicio, fecha_finalizacion, hora_ingreso, color, notas } = req.body;
   if (!numero_orden || !nombre || !fecha_inicio || !fecha_finalizacion)
     return res.status(400).json({ error: 'Campos requeridos: numero_orden, nombre, fecha_inicio, fecha_finalizacion' });
 
@@ -67,24 +67,24 @@ router.post('/', authMiddleware, adminOnly, (req, res) => {
   if (exists) return res.status(409).json({ error: 'Ya existe un evento con ese número de orden' });
 
   const result = db.prepare(`
-    INSERT INTO events (numero_orden, nombre, cliente, ubicacion, fecha_armado, fecha_inicio, fecha_finalizacion, hora_ingreso, notas)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(numero_orden, nombre, cliente || null, ubicacion || null, fecha_armado || null, fecha_inicio, fecha_finalizacion, hora_ingreso || null, notas || null);
+    INSERT INTO events (numero_orden, nombre, cliente, ubicacion, fecha_armado, fecha_inicio, fecha_finalizacion, hora_ingreso, color, notas)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(numero_orden, nombre, cliente || null, ubicacion || null, fecha_armado || null, fecha_inicio, fecha_finalizacion, hora_ingreso || null, color || null, notas || null);
 
   res.status(201).json({ id: result.lastInsertRowid, ...req.body });
 });
 
 // PUT update event (admin only)
 router.put('/:id', authMiddleware, adminOnly, (req, res) => {
-  const { numero_orden, nombre, cliente, ubicacion, fecha_armado, fecha_inicio, fecha_finalizacion, hora_ingreso, estado, notas } = req.body;
+  const { numero_orden, nombre, cliente, ubicacion, fecha_armado, fecha_inicio, fecha_finalizacion, hora_ingreso, color, estado, notas } = req.body;
   const event = db.prepare('SELECT id FROM events WHERE id = ?').get(req.params.id);
   if (!event) return res.status(404).json({ error: 'Evento no encontrado' });
 
   db.prepare(`
     UPDATE events SET numero_orden=?, nombre=?, cliente=?, ubicacion=?, fecha_armado=?,
-    fecha_inicio=?, fecha_finalizacion=?, hora_ingreso=?, estado=?, notas=? WHERE id=?
+    fecha_inicio=?, fecha_finalizacion=?, hora_ingreso=?, color=?, estado=?, notas=? WHERE id=?
   `).run(numero_orden, nombre, cliente || null, ubicacion || null, fecha_armado || null,
-    fecha_inicio, fecha_finalizacion, hora_ingreso || null, estado || 'pendiente', notas || null, req.params.id);
+    fecha_inicio, fecha_finalizacion, hora_ingreso || null, color || null, estado || 'a_confirmar', notas || null, req.params.id);
 
   res.json({ success: true });
 });
@@ -122,6 +122,29 @@ router.delete('/rooms/:roomId', authMiddleware, adminOnly, (req, res) => {
 // --- ROOM EQUIPMENT ---
 router.post('/rooms/:roomId/equipment', authMiddleware, adminOnly, (req, res) => {
   const { equipment_id, cantidad, notas } = req.body;
+  if (!equipment_id) return res.status(400).json({ error: 'equipment_id requerido' });
+
+  // Get current event dates
+  const room = db.prepare('SELECT event_id FROM event_rooms WHERE id = ?').get(req.params.roomId);
+  if (!room) return res.status(404).json({ error: 'Sala no encontrada' });
+  const event = db.prepare('SELECT id, nombre, fecha_inicio, fecha_finalizacion FROM events WHERE id = ?').get(room.event_id);
+
+  // Conflict check
+  const conflict = db.prepare(`
+    SELECT e.nombre, e.fecha_inicio, e.fecha_finalizacion
+    FROM room_equipment re
+    JOIN event_rooms er ON er.id = re.room_id
+    JOIN events e ON e.id = er.event_id
+    WHERE re.equipment_id = ? AND e.id != ?
+      AND e.fecha_inicio <= ? AND e.fecha_finalizacion >= ?
+  `).get(equipment_id, event.id, event.fecha_finalizacion, event.fecha_inicio);
+
+  if (conflict) {
+    return res.status(409).json({
+      error: `Conflicto: este equipo ya está asignado al evento "${conflict.nombre}" (${conflict.fecha_inicio} → ${conflict.fecha_finalizacion})`
+    });
+  }
+
   const result = db.prepare('INSERT INTO room_equipment (room_id, equipment_id, cantidad, notas) VALUES (?, ?, ?, ?)').run(req.params.roomId, equipment_id, cantidad || 1, notas || null);
   res.status(201).json({ id: result.lastInsertRowid });
 });
@@ -135,6 +158,28 @@ router.delete('/rooms/equipment/:id', authMiddleware, adminOnly, (req, res) => {
 router.post('/rooms/:roomId/staff', authMiddleware, adminOnly, (req, res) => {
   const { user_id, puesto } = req.body;
   if (!user_id || !puesto) return res.status(400).json({ error: 'user_id y puesto requeridos' });
+
+  // Get current event dates
+  const room = db.prepare('SELECT event_id FROM event_rooms WHERE id = ?').get(req.params.roomId);
+  if (!room) return res.status(404).json({ error: 'Sala no encontrada' });
+  const event = db.prepare('SELECT id, nombre, fecha_inicio, fecha_finalizacion FROM events WHERE id = ?').get(room.event_id);
+
+  // Conflict check
+  const conflict = db.prepare(`
+    SELECT e.nombre, e.fecha_inicio, e.fecha_finalizacion
+    FROM room_staff rs
+    JOIN event_rooms er ON er.id = rs.room_id
+    JOIN events e ON e.id = er.event_id
+    WHERE rs.user_id = ? AND e.id != ?
+      AND e.fecha_inicio <= ? AND e.fecha_finalizacion >= ?
+  `).get(user_id, event.id, event.fecha_finalizacion, event.fecha_inicio);
+
+  if (conflict) {
+    return res.status(409).json({
+      error: `Conflicto: esta persona ya está asignada al evento "${conflict.nombre}" (${conflict.fecha_inicio} → ${conflict.fecha_finalizacion})`
+    });
+  }
+
   const result = db.prepare('INSERT INTO room_staff (room_id, user_id, puesto) VALUES (?, ?, ?)').run(req.params.roomId, user_id, puesto);
   res.status(201).json({ id: result.lastInsertRowid });
 });

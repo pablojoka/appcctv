@@ -293,8 +293,8 @@ export default function Inventory() {
                           </td>
                           <td style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>x{r.cantidad}</td>
                           <td>
-                            <span className={`badge ${r.estado === 'cerrado' || r.estado === 'finalizado' ? 'badge-closed' : r.estado === 'en_curso' ? 'badge-active' : 'badge-pending'}`} style={{ fontSize: '0.68rem' }}>
-                              {r.estado}
+                            <span className={`badge ${r.estado === 'finalizado' ? 'badge-closed' : r.estado === 'confirmado' ? 'badge-active' : 'badge-pending'}`} style={{ fontSize: '0.68rem' }}>
+                              {{ a_confirmar: 'A confirmar', confirmado: 'Confirmado', finalizado: 'Finalizado' }[r.estado] || r.estado}
                             </span>
                           </td>
                         </tr>

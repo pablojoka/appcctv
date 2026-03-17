@@ -63,7 +63,7 @@ router.post('/', authMiddleware, (req, res) => {
     equipos_con_fallas || null, recomendaciones || null, nota_general || null);
 
   // Close the event
-  db.prepare("UPDATE events SET estado = 'cerrado' WHERE id = ?").run(event_id);
+  db.prepare("UPDATE events SET estado = 'finalizado' WHERE id = ?").run(event_id);
 
   res.status(201).json({ id: result.lastInsertRowid, success: true });
 });

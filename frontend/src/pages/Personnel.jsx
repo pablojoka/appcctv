@@ -1,9 +1,14 @@
 import { useState, useEffect } from 'react';
-import { getUsers, createUser, updateUser, deleteUser } from '../services/api';
+import { getUsers, createUser, updateUser, deleteUser, getUserHistory } from '../services/api';
 import { toast } from 'react-toastify';
-import { Plus, Search, Trash2, Edit2, Users, Phone } from 'lucide-react';
+import { Plus, Search, Trash2, Edit2, Users, Phone, History, Calendar } from 'lucide-react';
+import { format, parseISO } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 const INIT_FORM = { nombre: '', apellido: '', telefono: '', username: '', password: '', role: 'personal' };
+
+const STATUS_CLS = { a_confirmar: 'badge-pending', confirmado: 'badge-active', finalizado: 'badge-closed' };
+const STATUS_LABELS = { a_confirmar: 'A confirmar', confirmado: 'Confirmado', finalizado: 'Finalizado' };
 
 export default function Personnel() {
   const [users, setUsers] = useState([]);
@@ -13,6 +18,8 @@ export default function Personnel() {
   const [editUser, setEditUser] = useState(null);
   const [form, setForm] = useState(INIT_FORM);
   const [saving, setSaving] = useState(false);
+  const [historyModal, setHistoryModal] = useState(null); // { user, records }
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   const load = () => {
     getUsers().then(r => setUsers(r.data)).catch(console.error).finally(() => setLoading(false));
@@ -24,6 +31,16 @@ export default function Personnel() {
     setEditUser(u);
     setForm({ nombre: u.nombre, apellido: u.apellido, telefono: u.telefono || '', username: u.username, password: '', role: u.role });
     setShowModal(true);
+  };
+
+  const openHistory = async (u) => {
+    setHistoryLoading(true);
+    setHistoryModal({ user: u, records: [] });
+    try {
+      const res = await getUserHistory(u.id);
+      setHistoryModal({ user: u, records: res.data });
+    } catch { setHistoryModal({ user: u, records: [] }); }
+    finally { setHistoryLoading(false); }
   };
 
   const handleSave = async (e) => {
@@ -51,6 +68,7 @@ export default function Personnel() {
 
   const admins = filtered.filter(u => u.role === 'admin');
   const personal = filtered.filter(u => u.role === 'personal');
+  const fmt = (d) => { try { return format(parseISO(d), "dd/MM/yyyy", { locale: es }); } catch { return d; } };
 
   return (
     <div>
@@ -80,7 +98,7 @@ export default function Personnel() {
                 <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Administradores</h2>
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>({admins.length})</span>
               </div>
-              <UserTable users={admins} onEdit={openEdit} onDelete={handleDelete} />
+              <UserTable users={admins} onEdit={openEdit} onDelete={handleDelete} onHistory={openHistory} />
             </div>
           )}
           {personal.length > 0 && (
@@ -90,7 +108,7 @@ export default function Personnel() {
                 <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Operadores / Personal</h2>
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>({personal.length})</span>
               </div>
-              <UserTable users={personal} onEdit={openEdit} onDelete={handleDelete} />
+              <UserTable users={personal} onEdit={openEdit} onDelete={handleDelete} onHistory={openHistory} />
             </div>
           )}
           {filtered.length === 0 && (
@@ -99,6 +117,7 @@ export default function Personnel() {
         </>
       )}
 
+      {/* User form modal */}
       {showModal && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowModal(false)}>
           <div className="modal" style={{ maxWidth: 500 }}>
@@ -151,11 +170,83 @@ export default function Personnel() {
           </div>
         </div>
       )}
+
+      {/* History modal */}
+      {historyModal && (
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setHistoryModal(null)}>
+          <div className="modal modal-lg">
+            <div className="modal-header">
+              <div>
+                <h2>Historial — {historyModal.user.nombre} {historyModal.user.apellido}</h2>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 2 }}>@{historyModal.user.username}</div>
+              </div>
+              <button className="btn-icon" onClick={() => setHistoryModal(null)}>✕</button>
+            </div>
+            <div className="modal-body">
+              {historyLoading ? (
+                <div style={{ textAlign: 'center', padding: 40 }}><span className="spinner" style={{ display: 'inline-block', width: 28, height: 28 }} /></div>
+              ) : historyModal.records.length === 0 ? (
+                <div className="empty-state" style={{ padding: '40px 20px' }}>
+                  <History size={32} style={{ margin: '0 auto 10px', display: 'block', opacity: 0.3 }} />
+                  <p>Este operador no fue asignado a ningún evento todavía.</p>
+                </div>
+              ) : (
+                <div className="table-wrapper">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Evento</th>
+                        <th>Sala</th>
+                        <th>Puesto</th>
+                        <th>Cliente</th>
+                        <th>Fechas</th>
+                        <th>Estado</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {historyModal.records.map((r, i) => (
+                        <tr key={i}>
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              {r.color && <div style={{ width: 10, height: 10, borderRadius: 3, background: r.color, flexShrink: 0 }} />}
+                              <span style={{ fontWeight: 600 }}>{r.nombre}</span>
+                            </div>
+                          </td>
+                          <td style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{r.sala}</td>
+                          <td><span style={{ color: 'var(--accent)', fontSize: '0.85rem', fontWeight: 600 }}>{r.puesto}</span></td>
+                          <td style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{r.cliente || '—'}</td>
+                          <td style={{ fontSize: '0.82rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                              <Calendar size={11} />
+                              {fmt(r.fecha_inicio)} → {fmt(r.fecha_finalizacion)}
+                            </div>
+                          </td>
+                          <td>
+                            <span className={`badge ${STATUS_CLS[r.estado] || 'badge-pending'}`} style={{ fontSize: '0.68rem' }}>
+                              {STATUS_LABELS[r.estado] || r.estado}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+            <div className="modal-footer">
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginRight: 'auto' }}>
+                {historyModal.records.length} evento{historyModal.records.length !== 1 ? 's' : ''} en total
+              </span>
+              <button className="btn btn-ghost" onClick={() => setHistoryModal(null)}>Cerrar</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function UserTable({ users, onEdit, onDelete }) {
+function UserTable({ users, onEdit, onDelete, onHistory }) {
   return (
     <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
       <table>
@@ -165,7 +256,7 @@ function UserTable({ users, onEdit, onDelete }) {
             <th>Usuario</th>
             <th>Teléfono</th>
             <th>Rol</th>
-            <th style={{ width: 80 }}>Acciones</th>
+            <th style={{ width: 110 }}>Acciones</th>
           </tr>
         </thead>
         <tbody>
@@ -187,6 +278,7 @@ function UserTable({ users, onEdit, onDelete }) {
               </td>
               <td>
                 <div style={{ display: 'flex', gap: 6 }}>
+                  <button className="btn-icon" title="Ver historial" onClick={() => onHistory(u)}><History size={13} /></button>
                   <button className="btn-icon" onClick={() => onEdit(u)}><Edit2 size={13} /></button>
                   <button className="btn-icon" style={{ color: 'var(--red)' }} onClick={() => onDelete(u.id, `${u.nombre} ${u.apellido}`)}><Trash2 size={13} /></button>
                 </div>

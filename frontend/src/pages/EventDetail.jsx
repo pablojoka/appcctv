@@ -6,11 +6,13 @@ import { es } from 'date-fns/locale';
 import { toast } from 'react-toastify';
 import { useAuth } from '../context/AuthContext';
 import { ArrowLeft, Plus, Trash2, Edit2, Users, Package, MapPin, Hash, Calendar, FileText, MessageSquare, Copy, Check } from 'lucide-react';
+
+const COLOR_PRESETS = ['#e03030','#e07830','#e0c030','#30a050','#3080e0','#8030e0','#e030a0','#30d0d0'];
 import ReportModal from '../components/ReportModal';
 
-const STATUS_OPTS = ['pendiente', 'en_curso', 'finalizado', 'cerrado'];
-const STATUS_LABELS = { pendiente: 'Pendiente', en_curso: 'En curso', finalizado: 'Finalizado', cerrado: 'Cerrado' };
-const STATUS_CLS = { pendiente: 'badge-pending', en_curso: 'badge-active', finalizado: 'badge-closed', cerrado: 'badge-closed' };
+const STATUS_OPTS = ['a_confirmar', 'confirmado', 'finalizado'];
+const STATUS_LABELS = { a_confirmar: 'A confirmar', confirmado: 'Confirmado', finalizado: 'Finalizado' };
+const STATUS_CLS = { a_confirmar: 'badge-pending', confirmado: 'badge-active', finalizado: 'badge-closed' };
 
 export default function EventDetail() {
   const { id } = useParams();
@@ -29,9 +31,10 @@ export default function EventDetail() {
   const [msgModal, setMsgModal] = useState(null); // { nombre, apellido, puesto, sala }
   const [copied, setCopied] = useState(false);
   const [activeRoom, setActiveRoom] = useState(null);
-  const [showAddEquip, setShowAddEquip] = useState(null);
+  const [showAddEquip, setShowAddEquip] = useState(null); // roomId
   const [showAddStaff, setShowAddStaff] = useState(null);
-  const [equipForm, setEquipForm] = useState({ equipment_id: '', cantidad: 1, notas: '' });
+  const [selectedEquip, setSelectedEquip] = useState({}); // { [equipId]: cantidad }
+  const [equipSearch, setEquipSearch] = useState('');
   const [staffForm, setStaffForm] = useState({ user_id: '', puesto: '' });
 
   const load = () => {
@@ -73,14 +76,24 @@ export default function EventDetail() {
     catch { toast.error('Error al eliminar'); }
   };
 
-  const handleAddEquip = async (e) => {
-    e.preventDefault();
+  const handleAddMultipleEquip = async () => {
+    const items = Object.entries(selectedEquip);
+    if (!items.length) return;
     try {
-      await addRoomEquipment(showAddEquip, equipForm);
-      toast.success('Equipo agregado');
-      setShowAddEquip(null); setEquipForm({ equipment_id: '', cantidad: 1, notas: '' });
+      await Promise.all(items.map(([equipment_id, cantidad]) =>
+        addRoomEquipment(showAddEquip, { equipment_id, cantidad })
+      ));
+      toast.success(`${items.length} equipo${items.length > 1 ? 's' : ''} asignado${items.length > 1 ? 's' : ''}`);
+      setShowAddEquip(null); setSelectedEquip({}); setEquipSearch('');
       load();
-    } catch { toast.error('Error al agregar equipo'); }
+    } catch { toast.error('Error al asignar equipos'); }
+  };
+
+  const toggleEquip = (id) => {
+    setSelectedEquip(prev => {
+      if (prev[id]) { const n = { ...prev }; delete n[id]; return n; }
+      return { ...prev, [id]: 1 };
+    });
   };
 
   const handleRemoveEquip = async (id) => {
@@ -166,7 +179,7 @@ export default function EventDetail() {
         {isAdmin && (
           <div style={{ display: 'flex', gap: 10 }}>
             <button className="btn btn-ghost btn-sm" onClick={() => setEditingEvent(true)}><Edit2 size={14} /> Editar</button>
-            {event.estado !== 'cerrado' && (
+            {event.estado !== 'finalizado' && (
               <button className="btn btn-primary btn-sm" onClick={() => setShowReport(true)}>
                 <FileText size={14} /> Cerrar evento
               </button>
@@ -221,6 +234,21 @@ export default function EventDetail() {
               <div className="form-group">
                 <label className="form-label">Horario de ingreso</label>
                 <input className="form-control" type="text" placeholder="Ej: 08:00 hs" value={eventForm.hora_ingreso || ''} onChange={e => setEventForm(p => ({ ...p, hora_ingreso: e.target.value }))} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Color del evento</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  {COLOR_PRESETS.map(c => (
+                    <div key={c} onClick={() => setEventForm(p => ({ ...p, color: c }))} style={{
+                      width: 26, height: 26, borderRadius: 6, background: c, cursor: 'pointer',
+                      border: (eventForm.color || '#e03030') === c ? '2px solid #fff' : '2px solid transparent',
+                      boxShadow: (eventForm.color || '#e03030') === c ? '0 0 0 2px ' + c : 'none',
+                      transition: 'all 0.15s',
+                    }} />
+                  ))}
+                  <input type="color" value={eventForm.color || '#e03030'} onChange={e => setEventForm(p => ({ ...p, color: e.target.value }))}
+                    style={{ width: 32, height: 28, borderRadius: 6, border: '1px solid var(--border)', background: 'none', cursor: 'pointer', padding: 2 }} />
+                </div>
               </div>
               <div className="form-group">
                 <label className="form-label">Estado</label>
@@ -368,39 +396,121 @@ export default function EventDetail() {
         </div>
       )}
 
-      {/* Modal: Add equipment */}
-      {showAddEquip && (
-        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowAddEquip(null)}>
-          <div className="modal" style={{ maxWidth: 420 }}>
-            <div className="modal-header"><h2>Agregar equipo</h2><button className="btn-icon" onClick={() => setShowAddEquip(null)}>✕</button></div>
-            <form onSubmit={handleAddEquip}>
-              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                <div className="form-group">
-                  <label className="form-label">Equipo *</label>
-                  <select className="form-control" required value={equipForm.equipment_id} onChange={e => setEquipForm(p => ({ ...p, equipment_id: e.target.value }))}>
-                    <option value="">Seleccionar equipo...</option>
-                    {inventory.map(eq => (
-                      <option key={eq.id} value={eq.id}>{eq.nombre} {eq.marca ? `— ${eq.marca}` : ''} ({eq.categoria_nombre})</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Cantidad</label>
-                  <input className="form-control" type="number" min={1} value={equipForm.cantidad} onChange={e => setEquipForm(p => ({ ...p, cantidad: e.target.value }))} />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Notas</label>
-                  <input className="form-control" value={equipForm.notas} onChange={e => setEquipForm(p => ({ ...p, notas: e.target.value }))} placeholder="Observaciones..." />
+      {/* Modal: Add equipment — inventory browser */}
+      {showAddEquip && (() => {
+        const q = equipSearch.toLowerCase();
+        const filtered = q
+          ? inventory.filter(eq => eq.nombre.toLowerCase().includes(q) || (eq.marca || '').toLowerCase().includes(q) || (eq.modelo || '').toLowerCase().includes(q))
+          : inventory;
+
+        // Group by category
+        const groups = filtered.reduce((acc, eq) => {
+          const cat = eq.categoria_nombre || 'Sin categoría';
+          if (!acc[cat]) acc[cat] = [];
+          acc[cat].push(eq);
+          return acc;
+        }, {});
+
+        const totalSelected = Object.keys(selectedEquip).length;
+
+        return (
+          <div className="modal-overlay" onClick={e => e.target === e.currentTarget && (setShowAddEquip(null), setSelectedEquip({}), setEquipSearch(''))}>
+            <div className="modal modal-lg" style={{ display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
+              <div className="modal-header">
+                <h2>Agregar equipos a la sala</h2>
+                <button className="btn-icon" onClick={() => { setShowAddEquip(null); setSelectedEquip({}); setEquipSearch(''); }}>✕</button>
+              </div>
+
+              {/* Search */}
+              <div style={{ padding: '14px 24px', borderBottom: '1px solid var(--border)' }}>
+                <div className="search-bar" style={{ width: '100%' }}>
+                  <Package size={15} color="var(--text-muted)" />
+                  <input
+                    style={{ width: '100%', flex: 1 }}
+                    placeholder="Buscar por nombre, marca o modelo..."
+                    value={equipSearch}
+                    onChange={e => setEquipSearch(e.target.value)}
+                    autoFocus
+                  />
                 </div>
               </div>
+
+              {/* Inventory list */}
+              <div style={{ flex: 1, overflowY: 'auto', padding: '16px 24px' }}>
+                {Object.keys(groups).length === 0 ? (
+                  <div className="empty-state"><p>Sin resultados</p></div>
+                ) : Object.entries(groups).map(([cat, items]) => (
+                  <div key={cat} style={{ marginBottom: 20 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                      <Package size={13} color="var(--accent)" />
+                      <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.8rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{cat}</span>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>({items.length})</span>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      {items.map(eq => {
+                        const checked = !!selectedEquip[eq.id];
+                        return (
+                          <div
+                            key={eq.id}
+                            onClick={() => toggleEquip(eq.id)}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: 12,
+                              padding: '10px 12px', borderRadius: 'var(--radius)',
+                              background: checked ? 'var(--accent-dim)' : 'var(--bg-elevated)',
+                              border: `1px solid ${checked ? 'var(--accent)' : 'var(--border)'}`,
+                              cursor: 'pointer', transition: 'all 0.15s',
+                            }}
+                          >
+                            <div style={{
+                              width: 18, height: 18, borderRadius: 4, flexShrink: 0,
+                              border: `2px solid ${checked ? 'var(--accent)' : 'var(--text-muted)'}`,
+                              background: checked ? 'var(--accent)' : 'transparent',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            }}>
+                              {checked && <Check size={11} color="#000" />}
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontWeight: 600, fontSize: '0.87rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{eq.nombre}</div>
+                              {(eq.marca || eq.modelo) && (
+                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{[eq.marca, eq.modelo].filter(Boolean).join(' · ')}</div>
+                              )}
+                            </div>
+                            {checked && (
+                              <div onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Cant.</span>
+                                <input
+                                  type="number" min={1}
+                                  value={selectedEquip[eq.id]}
+                                  onChange={e => setSelectedEquip(prev => ({ ...prev, [eq.id]: Math.max(1, parseInt(e.target.value) || 1) }))}
+                                  style={{
+                                    width: 52, padding: '4px 8px', borderRadius: 6,
+                                    background: 'var(--bg-card)', border: '1px solid var(--accent)',
+                                    color: 'var(--text-primary)', textAlign: 'center', fontSize: '0.85rem',
+                                  }}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
               <div className="modal-footer">
-                <button type="button" className="btn btn-ghost" onClick={() => setShowAddEquip(null)}>Cancelar</button>
-                <button type="submit" className="btn btn-primary">Agregar</button>
+                <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginRight: 'auto' }}>
+                  {totalSelected > 0 ? `${totalSelected} equipo${totalSelected > 1 ? 's' : ''} seleccionado${totalSelected > 1 ? 's' : ''}` : 'Ningún equipo seleccionado'}
+                </span>
+                <button className="btn btn-ghost" onClick={() => { setShowAddEquip(null); setSelectedEquip({}); setEquipSearch(''); }}>Cancelar</button>
+                <button className="btn btn-primary" disabled={totalSelected === 0} onClick={handleAddMultipleEquip}>
+                  <Plus size={14} /> Asignar {totalSelected > 0 ? totalSelected : ''} equipo{totalSelected !== 1 ? 's' : ''}
+                </button>
               </div>
-            </form>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Modal: Add staff */}
       {showAddStaff && (

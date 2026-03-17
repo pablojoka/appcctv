@@ -8,16 +8,17 @@ import { useAuth } from '../context/AuthContext';
 import { Plus, Search, ArrowUpDown, Trash2, Eye, MapPin, Hash, ChevronUp, ChevronDown } from 'lucide-react';
 
 const STATUS_MAP = {
-  pendiente: { label: 'Pendiente', cls: 'badge-pending' },
-  en_curso: { label: 'En curso', cls: 'badge-active' },
-  finalizado: { label: 'Finalizado', cls: 'badge-closed' },
-  cerrado: { label: 'Cerrado', cls: 'badge-closed' },
+  a_confirmar: { label: 'A confirmar', cls: 'badge-pending' },
+  confirmado:  { label: 'Confirmado',  cls: 'badge-active' },
+  finalizado:  { label: 'Finalizado',  cls: 'badge-closed' },
 };
 
 const INITIAL_FORM = {
   numero_orden: '', nombre: '', cliente: '', ubicacion: '',
-  fecha_armado: '', fecha_inicio: '', fecha_finalizacion: '', notas: ''
+  fecha_armado: '', fecha_inicio: '', fecha_finalizacion: '', notas: '', color: '#e03030'
 };
+
+const COLOR_PRESETS = ['#e03030','#e07830','#e0c030','#30a050','#3080e0','#8030e0','#e030a0','#30d0d0'];
 
 export default function Events() {
   const { isAdmin } = useAuth();
@@ -111,10 +112,9 @@ export default function Events() {
         </div>
         <select className="form-control" style={{ width: 'auto' }} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
           <option value="all">Todos los estados</option>
-          <option value="pendiente">Pendiente</option>
-          <option value="en_curso">En curso</option>
+          <option value="a_confirmar">A confirmar</option>
+          <option value="confirmado">Confirmado</option>
           <option value="finalizado">Finalizado</option>
-          <option value="cerrado">Cerrado</option>
         </select>
       </div>
 
@@ -235,6 +235,21 @@ export default function Events() {
                   <div className="form-group">
                     <label className="form-label">Fecha de finalización *</label>
                     <input className="form-control" type="date" required value={form.fecha_finalizacion} onChange={e => setForm(p => ({ ...p, fecha_finalizacion: e.target.value }))} />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Color del evento</label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    {COLOR_PRESETS.map(c => (
+                      <div key={c} onClick={() => setForm(p => ({ ...p, color: c }))} style={{
+                        width: 26, height: 26, borderRadius: 6, background: c, cursor: 'pointer',
+                        border: form.color === c ? '2px solid #fff' : '2px solid transparent',
+                        boxShadow: form.color === c ? '0 0 0 2px ' + c : 'none',
+                        transition: 'all 0.15s',
+                      }} />
+                    ))}
+                    <input type="color" value={form.color} onChange={e => setForm(p => ({ ...p, color: e.target.value }))}
+                      style={{ width: 32, height: 28, borderRadius: 6, border: '1px solid var(--border)', background: 'none', cursor: 'pointer', padding: 2 }} />
                   </div>
                 </div>
                 <div className="form-group">

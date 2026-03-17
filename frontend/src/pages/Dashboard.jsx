@@ -6,10 +6,9 @@ import { es } from 'date-fns/locale';
 import { Calendar, Clock, MapPin, ChevronLeft, ChevronRight, Activity } from 'lucide-react';
 
 const STATUS_MAP = {
-  pendiente: { label: 'Pendiente', cls: 'badge-pending' },
-  en_curso: { label: 'En curso', cls: 'badge-active' },
-  finalizado: { label: 'Finalizado', cls: 'badge-closed' },
-  cerrado: { label: 'Cerrado', cls: 'badge-closed' },
+  a_confirmar: { label: 'A confirmar', cls: 'badge-pending' },
+  confirmado:  { label: 'Confirmado',  cls: 'badge-active' },
+  finalizado:  { label: 'Finalizado',  cls: 'badge-closed' },
 };
 
 export default function Dashboard() {
@@ -28,22 +27,34 @@ export default function Dashboard() {
   const getEventsForDay = (day) =>
     events.filter(e => {
       try {
-        const start = parseISO(e.fecha_inicio);
+        const start = e.fecha_armado ? parseISO(e.fecha_armado) : parseISO(e.fecha_inicio);
         const end = parseISO(e.fecha_finalizacion);
         return day >= start && day <= end;
       } catch { return false; }
     });
 
+  const isArmadoDay = (day, ev) => {
+    if (!ev.fecha_armado) return false;
+    try {
+      const armado = parseISO(ev.fecha_armado);
+      const inicio = parseISO(ev.fecha_inicio);
+      return day >= armado && day < inicio;
+    } catch { return false; }
+  };
+
+  const COLOR_PALETTE = ['#e03030','#e07830','#e0c030','#30a050','#3080e0','#8030e0','#e030a0','#30d0d0'];
+  const getColor = (ev) => ev.color || COLOR_PALETTE[ev.id % COLOR_PALETTE.length];
+
   const upcomingEvents = [...events]
-    .filter(e => e.estado !== 'cerrado')
+    .filter(e => e.estado !== 'finalizado')
     .sort((a, b) => new Date(a.fecha_inicio) - new Date(b.fecha_inicio))
     .slice(0, 6);
 
   const stats = {
     total: events.length,
-    activos: events.filter(e => e.estado === 'en_curso').length,
-    pendientes: events.filter(e => e.estado === 'pendiente').length,
-    cerrados: events.filter(e => e.estado === 'cerrado').length,
+    activos: events.filter(e => e.estado === 'confirmado').length,
+    pendientes: events.filter(e => e.estado === 'a_confirmar').length,
+    cerrados: events.filter(e => e.estado === 'finalizado').length,
   };
 
   if (loading) return (
@@ -69,15 +80,15 @@ export default function Dashboard() {
         </div>
         <div className="stat-card">
           <div className="stat-value" style={{ color: 'var(--green)' }}>{stats.activos}</div>
-          <div className="stat-label">En curso</div>
+          <div className="stat-label">Confirmados</div>
         </div>
         <div className="stat-card">
           <div className="stat-value" style={{ color: 'var(--yellow)' }}>{stats.pendientes}</div>
-          <div className="stat-label">Pendientes</div>
+          <div className="stat-label">A confirmar</div>
         </div>
         <div className="stat-card">
           <div className="stat-value" style={{ color: 'var(--text-muted)' }}>{stats.cerrados}</div>
-          <div className="stat-label">Cerrados</div>
+          <div className="stat-label">Finalizados</div>
         </div>
       </div>
 
@@ -136,22 +147,28 @@ export default function Dashboard() {
                   }}>
                     {format(day, 'd')}
                   </div>
-                  {dayEvents.slice(0, 2).map(ev => (
-                    <div
-                      key={ev.id}
-                      onClick={() => navigate(`/events/${ev.id}`)}
-                      style={{
-                        fontSize: '0.68rem', fontWeight: 600, padding: '2px 5px',
-                        borderRadius: 4, marginBottom: 2, cursor: 'pointer',
-                        background: ev.estado === 'en_curso' ? 'var(--green-dim)' : 'var(--accent-dim)',
-                        color: ev.estado === 'en_curso' ? 'var(--green)' : 'var(--accent)',
-                        overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
-                      }}
-                      title={ev.nombre}
-                    >
-                      {ev.nombre}
-                    </div>
-                  ))}
+                  {dayEvents.slice(0, 2).map(ev => {
+                    const color = getColor(ev);
+                    const armado = isArmadoDay(day, ev);
+                    return (
+                      <div
+                        key={ev.id}
+                        onClick={() => navigate(`/events/${ev.id}`)}
+                        style={{
+                          fontSize: '0.68rem', fontWeight: 600, padding: '2px 5px',
+                          borderRadius: 4, marginBottom: 2, cursor: 'pointer',
+                          background: color + (armado ? '28' : '33'),
+                          color: color,
+                          border: `1px solid ${color}${armado ? '50' : '80'}`,
+                          opacity: armado ? 0.8 : 1,
+                          overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
+                        }}
+                        title={ev.nombre + (armado ? ' (armado)' : '')}
+                      >
+                        {armado ? '🔧 ' : ''}{ev.nombre}
+                      </div>
+                    );
+                  })}
                   {dayEvents.length > 2 && (
                     <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>+{dayEvents.length - 2} más</div>
                   )}
