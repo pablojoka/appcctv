@@ -258,6 +258,60 @@ async function generateOrdenServicio(event) {
       y = doc.lastAutoTable.finalY + 6;
     }
 
+    // Staff table
+    const staff = room.staff || [];
+    if (staff.length > 0) {
+      if (y > pageH - 40) {
+        drawFooter();
+        doc.addPage();
+        pageNum++;
+        drawHeader(pageNum);
+        y = 33;
+      }
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7.5);
+      doc.setTextColor(150, 150, 150);
+      doc.text('PERSONAL ASIGNADO', margin + 2, y + 4);
+      y += 7;
+
+      autoTable(doc, {
+        startY: y,
+        margin: { left: margin, right: margin },
+        head: [['Nombre', 'Puesto', 'Teléfono']],
+        body: staff.map(st => [
+          `${st.apellido || ''} ${st.nombre}`.trim(),
+          st.puesto,
+          st.telefono || '—',
+        ]),
+        styles: {
+          fontSize: 9,
+          cellPadding: { top: 3, bottom: 3, left: 4, right: 4 },
+          textColor: [30, 30, 30],
+          fillColor: [255, 255, 255],
+          lineColor: [210, 210, 210],
+          lineWidth: 0.2,
+        },
+        headStyles: {
+          fillColor: [245, 245, 245],
+          textColor: [80, 80, 80],
+          fontStyle: 'bold',
+          fontSize: 7.5,
+          halign: 'left',
+        },
+        columnStyles: {
+          0: { cellWidth: 'auto', fontStyle: 'bold' },
+          1: { cellWidth: 60, textColor: [224, 48, 48], fontStyle: 'bold' },
+          2: { cellWidth: 40, textColor: [100, 100, 100] },
+        },
+        alternateRowStyles: { fillColor: [250, 250, 250] },
+        theme: 'grid',
+        didDrawPage: () => {},
+      });
+
+      y = doc.lastAutoTable.finalY + 6;
+    }
+
     y += 4;
   }
 
