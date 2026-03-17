@@ -59,7 +59,7 @@ router.get('/:id', authMiddleware, (req, res) => {
 
 // POST create event (admin only)
 router.post('/', authMiddleware, adminOnly, (req, res) => {
-  const { numero_orden, nombre, cliente, ubicacion, fecha_armado, fecha_inicio, fecha_finalizacion, hora_ingreso, color, notas } = req.body;
+  const { numero_orden, nombre, ubicacion, fecha_armado, fecha_inicio, fecha_finalizacion, hora_ingreso, color, notas } = req.body;
   if (!numero_orden || !nombre || !fecha_inicio || !fecha_finalizacion)
     return res.status(400).json({ error: 'Campos requeridos: numero_orden, nombre, fecha_inicio, fecha_finalizacion' });
 
@@ -67,23 +67,23 @@ router.post('/', authMiddleware, adminOnly, (req, res) => {
   if (exists) return res.status(409).json({ error: 'Ya existe un evento con ese número de orden' });
 
   const result = db.prepare(`
-    INSERT INTO events (numero_orden, nombre, cliente, ubicacion, fecha_armado, fecha_inicio, fecha_finalizacion, hora_ingreso, color, notas)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(numero_orden, nombre, cliente || null, ubicacion || null, fecha_armado || null, fecha_inicio, fecha_finalizacion, hora_ingreso || null, color || null, notas || null);
+    INSERT INTO events (numero_orden, nombre, ubicacion, fecha_armado, fecha_inicio, fecha_finalizacion, hora_ingreso, color, notas)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(numero_orden, nombre, ubicacion || null, fecha_armado || null, fecha_inicio, fecha_finalizacion, hora_ingreso || null, color || null, notas || null);
 
   res.status(201).json({ id: result.lastInsertRowid, ...req.body });
 });
 
 // PUT update event (admin only)
 router.put('/:id', authMiddleware, adminOnly, (req, res) => {
-  const { numero_orden, nombre, cliente, ubicacion, fecha_armado, fecha_inicio, fecha_finalizacion, hora_ingreso, color, estado, notas } = req.body;
+  const { numero_orden, nombre, ubicacion, fecha_armado, fecha_inicio, fecha_finalizacion, hora_ingreso, color, estado, notas } = req.body;
   const event = db.prepare('SELECT id FROM events WHERE id = ?').get(req.params.id);
   if (!event) return res.status(404).json({ error: 'Evento no encontrado' });
 
   db.prepare(`
-    UPDATE events SET numero_orden=?, nombre=?, cliente=?, ubicacion=?, fecha_armado=?,
+    UPDATE events SET numero_orden=?, nombre=?, ubicacion=?, fecha_armado=?,
     fecha_inicio=?, fecha_finalizacion=?, hora_ingreso=?, color=?, estado=?, notas=? WHERE id=?
-  `).run(numero_orden, nombre, cliente || null, ubicacion || null, fecha_armado || null,
+  `).run(numero_orden, nombre, ubicacion || null, fecha_armado || null,
     fecha_inicio, fecha_finalizacion, hora_ingreso || null, color || null, estado || 'a_confirmar', notas || null, req.params.id);
 
   res.json({ success: true });

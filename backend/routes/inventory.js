@@ -50,7 +50,7 @@ router.post('/', authMiddleware, adminOnly, (req, res) => {
 // GET equipment event history
 router.get('/:id/history', authMiddleware, (req, res) => {
   const history = db.prepare(`
-    SELECT e.id, e.nombre, e.cliente, e.ubicacion, e.fecha_inicio, e.fecha_finalizacion, e.estado,
+    SELECT re.id as assignment_id, e.id, e.nombre, e.ubicacion, e.fecha_inicio, e.fecha_finalizacion, e.estado,
            er.nombre as sala, re.cantidad
     FROM room_equipment re
     JOIN event_rooms er ON er.id = re.room_id
@@ -59,6 +59,12 @@ router.get('/:id/history', authMiddleware, (req, res) => {
     ORDER BY e.fecha_inicio DESC
   `).all(req.params.id);
   res.json(history);
+});
+
+// DELETE history entry (admin only)
+router.delete('/history/:id', authMiddleware, adminOnly, (req, res) => {
+  db.prepare('DELETE FROM room_equipment WHERE id = ?').run(req.params.id);
+  res.json({ success: true });
 });
 
 // PUT update equipment (admin only)

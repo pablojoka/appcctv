@@ -14,7 +14,7 @@ const STATUS_MAP = {
 };
 
 const INITIAL_FORM = {
-  numero_orden: '', nombre: '', cliente: '', ubicacion: '',
+  numero_orden: '', nombre: '', ubicacion: '',
   fecha_armado: '', fecha_inicio: '', fecha_finalizacion: '', notas: '', color: '#e03030'
 };
 
@@ -47,7 +47,7 @@ export default function Events() {
   const filtered = events
     .filter(e => {
       const q = search.toLowerCase();
-      const matchSearch = !q || e.nombre.toLowerCase().includes(q) || e.numero_orden.toLowerCase().includes(q) || (e.cliente || '').toLowerCase().includes(q) || (e.ubicacion || '').toLowerCase().includes(q);
+      const matchSearch = !q || e.nombre.toLowerCase().includes(q) || e.numero_orden.toLowerCase().includes(q) || (e.ubicacion || '').toLowerCase().includes(q);
       const matchStatus = statusFilter === 'all' || e.estado === statusFilter;
       return matchSearch && matchStatus;
     })
@@ -129,7 +129,6 @@ export default function Events() {
                 <th style={{ cursor: 'pointer' }} onClick={() => handleSort('nombre')}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>Nombre <SortIcon field="nombre" /></div>
                 </th>
-                <th>Cliente</th>
                 <th>Ubicación</th>
                 <th style={{ cursor: 'pointer' }} onClick={() => handleSort('fecha_inicio')}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>Fecha inicio <SortIcon field="fecha_inicio" /></div>
@@ -143,9 +142,9 @@ export default function Events() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={8} style={{ textAlign: 'center', padding: 40 }}><span className="spinner" style={{ display: 'inline-block' }} /></td></tr>
+                <tr><td colSpan={7} style={{ textAlign: 'center', padding: 40 }}><span className="spinner" style={{ display: 'inline-block' }} /></td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={8} style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>Sin resultados</td></tr>
+                <tr><td colSpan={7} style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>Sin resultados</td></tr>
               ) : filtered.map(ev => (
                 <tr key={ev.id}>
                   <td>
@@ -154,7 +153,6 @@ export default function Events() {
                     </span>
                   </td>
                   <td style={{ fontWeight: 600 }}>{ev.nombre}</td>
-                  <td style={{ color: 'var(--text-secondary)' }}>{ev.cliente || '—'}</td>
                   <td>
                     {ev.ubicacion ? (
                       <span style={{ display: 'flex', alignItems: 'center', gap: 5, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
@@ -213,15 +211,9 @@ export default function Events() {
                     <input className="form-control" required value={form.nombre} onChange={e => setForm(p => ({ ...p, nombre: e.target.value }))} placeholder="Nombre del evento" />
                   </div>
                 </div>
-                <div className="grid-2">
-                  <div className="form-group">
-                    <label className="form-label">Cliente</label>
-                    <input className="form-control" value={form.cliente} onChange={e => setForm(p => ({ ...p, cliente: e.target.value }))} placeholder="Nombre del cliente" />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Ubicación</label>
-                    <input className="form-control" value={form.ubicacion} onChange={e => setForm(p => ({ ...p, ubicacion: e.target.value }))} placeholder="Lugar del evento" />
-                  </div>
+                <div className="form-group">
+                  <label className="form-label">Ubicación</label>
+                  <input className="form-control" value={form.ubicacion} onChange={e => setForm(p => ({ ...p, ubicacion: e.target.value }))} placeholder="Lugar del evento" />
                 </div>
                 <div className="grid-3">
                   <div className="form-group">

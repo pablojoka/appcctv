@@ -124,7 +124,6 @@ export default function EventDetail() {
       `Te contactamos desde *Congress CCTV* para confirmarte tu citación al siguiente evento:`,
       ``,
       `📋 *Evento:* ${event.nombre}`,
-      event.cliente ? `🏢 *Cliente:* ${event.cliente}` : null,
       event.ubicacion ? `📍 *Ubicación:* ${event.ubicacion}` : null,
       `🏠 *Sala:* ${sala}`,
       `👤 *Tu puesto:* ${puesto}`,
@@ -207,15 +206,9 @@ export default function EventDetail() {
                   <input className="form-control" value={eventForm.nombre || ''} onChange={e => setEventForm(p => ({ ...p, nombre: e.target.value }))} />
                 </div>
               </div>
-              <div className="grid-2">
-                <div className="form-group">
-                  <label className="form-label">Cliente</label>
-                  <input className="form-control" value={eventForm.cliente || ''} onChange={e => setEventForm(p => ({ ...p, cliente: e.target.value }))} />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Ubicación</label>
-                  <input className="form-control" value={eventForm.ubicacion || ''} onChange={e => setEventForm(p => ({ ...p, ubicacion: e.target.value }))} />
-                </div>
+              <div className="form-group">
+                <label className="form-label">Ubicación</label>
+                <input className="form-control" value={eventForm.ubicacion || ''} onChange={e => setEventForm(p => ({ ...p, ubicacion: e.target.value }))} />
               </div>
               <div className="grid-3">
                 <div className="form-group">

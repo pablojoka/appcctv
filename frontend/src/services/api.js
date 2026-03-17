@@ -60,6 +60,8 @@ export const updateEquipment = (id, data) => api.put(`/inventory/${id}`, data);
 export const deleteEquipment = (id) => api.delete(`/inventory/${id}`);
 export const createCategory = (data) => api.post('/inventory/categories', data);
 export const getEquipmentHistory = (id) => api.get(`/inventory/${id}/history`);
+export const deleteEquipmentHistory = (id) => api.delete(`/inventory/history/${id}`);
+export const deleteUserHistory = (id) => api.delete(`/users/history/${id}`);
 
 // Reports
 export const getReports = () => api.get('/reports');

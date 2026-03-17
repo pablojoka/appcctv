@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getInventory, getCategories, createEquipment, updateEquipment, deleteEquipment, createCategory, getEquipmentHistory } from '../services/api';
+import { getInventory, getCategories, createEquipment, updateEquipment, deleteEquipment, createCategory, getEquipmentHistory, deleteEquipmentHistory } from '../services/api';
 import { toast } from 'react-toastify';
 import { useAuth } from '../context/AuthContext';
 import { Plus, Search, Trash2, Edit2, Package, Tag, History, Calendar, MapPin } from 'lucide-react';
@@ -95,6 +95,16 @@ export default function Inventory() {
       setHistoryModal({ eq, records: res.data });
     } catch { setHistoryModal({ eq, records: [] }); }
     finally { setHistoryLoading(false); }
+  };
+
+  const handleDeleteHistory = async (assignmentId, eqId) => {
+    if (!confirm('¿Eliminar este registro del historial? Esto también quitará el equipo del evento.')) return;
+    try {
+      await deleteEquipmentHistory(assignmentId);
+      const res = await getEquipmentHistory(eqId);
+      setHistoryModal(prev => ({ ...prev, records: res.data }));
+      toast.success('Registro eliminado');
+    } catch { toast.error('Error al eliminar'); }
   };
 
   const fmt = (d) => { try { return format(parseISO(d), "dd/MM/yyyy", { locale: es }); } catch { return d; } };
@@ -273,10 +283,10 @@ export default function Inventory() {
                       <tr>
                         <th>Evento</th>
                         <th>Sala</th>
-                        <th>Cliente</th>
                         <th>Fechas</th>
                         <th>Cant.</th>
                         <th>Estado</th>
+                        <th style={{ width: 50 }}></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -284,7 +294,6 @@ export default function Inventory() {
                         <tr key={i}>
                           <td style={{ fontWeight: 600 }}>{r.nombre}</td>
                           <td style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{r.sala}</td>
-                          <td style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{r.cliente || '—'}</td>
                           <td style={{ fontSize: '0.82rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                               <Calendar size={11} />
@@ -296,6 +305,11 @@ export default function Inventory() {
                             <span className={`badge ${r.estado === 'finalizado' ? 'badge-closed' : r.estado === 'confirmado' ? 'badge-active' : 'badge-pending'}`} style={{ fontSize: '0.68rem' }}>
                               {{ a_confirmar: 'A confirmar', confirmado: 'Confirmado', finalizado: 'Finalizado' }[r.estado] || r.estado}
                             </span>
+                          </td>
+                          <td>
+                            <button className="btn-icon" style={{ color: 'var(--red)' }} title="Eliminar del historial" onClick={() => handleDeleteHistory(r.assignment_id, historyModal.eq.id)}>
+                              <Trash2 size={13} />
+                            </button>
                           </td>
                         </tr>
                       ))}

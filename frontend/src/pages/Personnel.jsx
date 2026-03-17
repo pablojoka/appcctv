@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getUsers, createUser, updateUser, deleteUser, getUserHistory } from '../services/api';
+import { getUsers, createUser, updateUser, deleteUser, getUserHistory, deleteUserHistory } from '../services/api';
 import { toast } from 'react-toastify';
 import { Plus, Search, Trash2, Edit2, Users, Phone, History, Calendar } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
@@ -41,6 +41,16 @@ export default function Personnel() {
       setHistoryModal({ user: u, records: res.data });
     } catch { setHistoryModal({ user: u, records: [] }); }
     finally { setHistoryLoading(false); }
+  };
+
+  const handleDeleteHistory = async (assignmentId, userId) => {
+    if (!confirm('¿Eliminar este registro del historial? Esto también quitará al operador del evento.')) return;
+    try {
+      await deleteUserHistory(assignmentId);
+      const res = await getUserHistory(userId);
+      setHistoryModal(prev => ({ ...prev, records: res.data }));
+      toast.success('Registro eliminado');
+    } catch { toast.error('Error al eliminar'); }
   };
 
   const handleSave = async (e) => {
@@ -198,9 +208,9 @@ export default function Personnel() {
                         <th>Evento</th>
                         <th>Sala</th>
                         <th>Puesto</th>
-                        <th>Cliente</th>
                         <th>Fechas</th>
                         <th>Estado</th>
+                        <th style={{ width: 50 }}></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -214,7 +224,6 @@ export default function Personnel() {
                           </td>
                           <td style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{r.sala}</td>
                           <td><span style={{ color: 'var(--accent)', fontSize: '0.85rem', fontWeight: 600 }}>{r.puesto}</span></td>
-                          <td style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{r.cliente || '—'}</td>
                           <td style={{ fontSize: '0.82rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                               <Calendar size={11} />
@@ -225,6 +234,11 @@ export default function Personnel() {
                             <span className={`badge ${STATUS_CLS[r.estado] || 'badge-pending'}`} style={{ fontSize: '0.68rem' }}>
                               {STATUS_LABELS[r.estado] || r.estado}
                             </span>
+                          </td>
+                          <td>
+                            <button className="btn-icon" style={{ color: 'var(--red)' }} title="Eliminar del historial" onClick={() => handleDeleteHistory(r.assignment_id, historyModal.user.id)}>
+                              <Trash2 size={13} />
+                            </button>
                           </td>
                         </tr>
                       ))}

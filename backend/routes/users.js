@@ -47,7 +47,7 @@ router.put('/:id', authMiddleware, adminOnly, (req, res) => {
 // GET user event history (admin only)
 router.get('/:id/history', authMiddleware, adminOnly, (req, res) => {
   const history = db.prepare(`
-    SELECT DISTINCT e.id, e.nombre, e.cliente, e.ubicacion, e.fecha_inicio, e.fecha_finalizacion, e.estado, e.color,
+    SELECT rs.id as assignment_id, e.id, e.nombre, e.ubicacion, e.fecha_inicio, e.fecha_finalizacion, e.estado, e.color,
            rs.puesto, er.nombre as sala
     FROM room_staff rs
     JOIN event_rooms er ON er.id = rs.room_id
@@ -56,6 +56,12 @@ router.get('/:id/history', authMiddleware, adminOnly, (req, res) => {
     ORDER BY e.fecha_inicio DESC
   `).all(req.params.id);
   res.json(history);
+});
+
+// DELETE history entry (admin only)
+router.delete('/history/:id', authMiddleware, adminOnly, (req, res) => {
+  db.prepare('DELETE FROM room_staff WHERE id = ?').run(req.params.id);
+  res.json({ success: true });
 });
 
 // DELETE user (admin only)
