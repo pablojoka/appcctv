@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
-import { getInventory, getCategories, createEquipment, updateEquipment, deleteEquipment, createCategory } from '../services/api';
+import { getInventory, getCategories, createEquipment, updateEquipment, deleteEquipment, createCategory, getEquipmentHistory } from '../services/api';
 import { toast } from 'react-toastify';
 import { useAuth } from '../context/AuthContext';
-import { Plus, Search, Trash2, Edit2, Package, Tag } from 'lucide-react';
+import { Plus, Search, Trash2, Edit2, Package, Tag, History, Calendar, MapPin } from 'lucide-react';
+import { format, parseISO } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 const ESTADO_OPTS = [
   { value: 'disponible', label: 'Disponible', cls: 'badge-available' },
@@ -25,6 +27,8 @@ export default function Inventory() {
   const [saving, setSaving] = useState(false);
   const [showCatModal, setShowCatModal] = useState(false);
   const [newCat, setNewCat] = useState('');
+  const [historyModal, setHistoryModal] = useState(null); // { eq, records }
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   const load = () => {
     Promise.all([getInventory(), getCategories()])
@@ -83,6 +87,18 @@ export default function Inventory() {
 
   const estadoInfo = (e) => ESTADO_OPTS.find(o => o.value === e) || ESTADO_OPTS[0];
 
+  const openHistory = async (eq) => {
+    setHistoryLoading(true);
+    setHistoryModal({ eq, records: [] });
+    try {
+      const res = await getEquipmentHistory(eq.id);
+      setHistoryModal({ eq, records: res.data });
+    } catch { setHistoryModal({ eq, records: [] }); }
+    finally { setHistoryLoading(false); }
+  };
+
+  const fmt = (d) => { try { return format(parseISO(d), "dd/MM/yyyy", { locale: es }); } catch { return d; } };
+
   return (
     <div>
       <div className="page-header">
@@ -130,7 +146,7 @@ export default function Inventory() {
                   <th>Marca / Modelo</th>
                   <th>N° Serie</th>
                   <th>Estado</th>
-                  {isAdmin && <th style={{ width: 80 }}>Acciones</th>}
+                  <th style={{ width: 100 }}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -152,14 +168,15 @@ export default function Inventory() {
                       </td>
                       <td style={{ color: 'var(--text-muted)', fontSize: '0.82rem', fontFamily: 'monospace' }}>{eq.numero_serie || '—'}</td>
                       <td><span className={`badge ${est.cls}`}>{est.label}</span></td>
-                      {isAdmin && (
-                        <td>
-                          <div style={{ display: 'flex', gap: 6 }}>
+                      <td>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <button className="btn-icon" title="Ver historial" onClick={() => openHistory(eq)}><History size={13} /></button>
+                          {isAdmin && <>
                             <button className="btn-icon" onClick={() => openEdit(eq)}><Edit2 size={13} /></button>
                             <button className="btn-icon" style={{ color: 'var(--red)' }} onClick={() => handleDelete(eq.id, eq.nombre)}><Trash2 size={13} /></button>
-                          </div>
-                        </td>
-                      )}
+                          </>}
+                        </div>
+                      </td>
                     </tr>
                   );
                 })}
@@ -226,6 +243,73 @@ export default function Inventory() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* History modal */}
+      {historyModal && (
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setHistoryModal(null)}>
+          <div className="modal modal-lg">
+            <div className="modal-header">
+              <div>
+                <h2>Historial — {historyModal.eq.nombre}</h2>
+                {historyModal.eq.marca && <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 2 }}>{historyModal.eq.marca} {historyModal.eq.modelo}</div>}
+              </div>
+              <button className="btn-icon" onClick={() => setHistoryModal(null)}>✕</button>
+            </div>
+            <div className="modal-body">
+              {historyLoading ? (
+                <div style={{ textAlign: 'center', padding: 40 }}><span className="spinner" style={{ display: 'inline-block', width: 28, height: 28 }} /></div>
+              ) : historyModal.records.length === 0 ? (
+                <div className="empty-state" style={{ padding: '40px 20px' }}>
+                  <History size={32} style={{ margin: '0 auto 10px', display: 'block', opacity: 0.3 }} />
+                  <p>Este equipo no fue asignado a ningún evento todavía.</p>
+                </div>
+              ) : (
+                <div className="table-wrapper">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Evento</th>
+                        <th>Sala</th>
+                        <th>Cliente</th>
+                        <th>Fechas</th>
+                        <th>Cant.</th>
+                        <th>Estado</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {historyModal.records.map((r, i) => (
+                        <tr key={i}>
+                          <td style={{ fontWeight: 600 }}>{r.nombre}</td>
+                          <td style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{r.sala}</td>
+                          <td style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{r.cliente || '—'}</td>
+                          <td style={{ fontSize: '0.82rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                              <Calendar size={11} />
+                              {fmt(r.fecha_inicio)} → {fmt(r.fecha_finalizacion)}
+                            </div>
+                          </td>
+                          <td style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>x{r.cantidad}</td>
+                          <td>
+                            <span className={`badge ${r.estado === 'cerrado' || r.estado === 'finalizado' ? 'badge-closed' : r.estado === 'en_curso' ? 'badge-active' : 'badge-pending'}`} style={{ fontSize: '0.68rem' }}>
+                              {r.estado}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+            <div className="modal-footer">
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginRight: 'auto' }}>
+                {historyModal.records.length} evento{historyModal.records.length !== 1 ? 's' : ''} en total
+              </span>
+              <button className="btn btn-ghost" onClick={() => setHistoryModal(null)}>Cerrar</button>
+            </div>
           </div>
         </div>
       )}

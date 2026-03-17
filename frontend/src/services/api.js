@@ -58,6 +58,7 @@ export const createEquipment = (data) => api.post('/inventory', data);
 export const updateEquipment = (id, data) => api.put(`/inventory/${id}`, data);
 export const deleteEquipment = (id) => api.delete(`/inventory/${id}`);
 export const createCategory = (data) => api.post('/inventory/categories', data);
+export const getEquipmentHistory = (id) => api.get(`/inventory/${id}/history`);
 
 // Reports
 export const getReports = () => api.get('/reports');

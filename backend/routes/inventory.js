@@ -47,6 +47,20 @@ router.post('/', authMiddleware, adminOnly, (req, res) => {
   res.status(201).json({ id: result.lastInsertRowid, ...req.body });
 });
 
+// GET equipment event history
+router.get('/:id/history', authMiddleware, (req, res) => {
+  const history = db.prepare(`
+    SELECT e.id, e.nombre, e.cliente, e.ubicacion, e.fecha_inicio, e.fecha_finalizacion, e.estado,
+           er.nombre as sala, re.cantidad
+    FROM room_equipment re
+    JOIN event_rooms er ON er.id = re.room_id
+    JOIN events e ON e.id = er.event_id
+    WHERE re.equipment_id = ?
+    ORDER BY e.fecha_inicio DESC
+  `).all(req.params.id);
+  res.json(history);
+});
+
 // PUT update equipment (admin only)
 router.put('/:id', authMiddleware, adminOnly, (req, res) => {
   const { nombre, descripcion, marca, modelo, numero_serie, categoria_id, estado } = req.body;
