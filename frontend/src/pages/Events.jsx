@@ -152,7 +152,12 @@ export default function Events() {
                       #{ev.numero_orden}
                     </span>
                   </td>
-                  <td style={{ fontWeight: 600 }}>{ev.nombre}</td>
+                  <td style={{ fontWeight: 600, cursor: 'pointer', color: 'var(--text-primary)' }} onClick={() => navigate(`/events/${ev.id}`)} title="Ver detalle">
+                    <span style={{ borderBottom: '1px solid transparent', transition: 'border-color 0.15s' }}
+                      onMouseEnter={e => e.currentTarget.style.borderBottomColor = 'var(--accent)'}
+                      onMouseLeave={e => e.currentTarget.style.borderBottomColor = 'transparent'}
+                    >{ev.nombre}</span>
+                  </td>
                   <td>
                     {ev.ubicacion ? (
                       <span style={{ display: 'flex', alignItems: 'center', gap: 5, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>

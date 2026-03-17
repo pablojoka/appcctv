@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { getInventory, getCategories, createEquipment, updateEquipment, deleteEquipment, createCategory, getEquipmentHistory, deleteEquipmentHistory } from '../services/api';
 import { toast } from 'react-toastify';
 import { useAuth } from '../context/AuthContext';
-import { Plus, Search, Trash2, Edit2, Package, Tag, History, Calendar, MapPin } from 'lucide-react';
+import { Plus, Search, Trash2, Edit2, Package, Tag, History, Calendar, X } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -29,6 +29,8 @@ export default function Inventory() {
   const [newCat, setNewCat] = useState('');
   const [historyModal, setHistoryModal] = useState(null); // { eq, records }
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const load = () => {
     Promise.all([getInventory(), getCategories()])
@@ -60,6 +62,35 @@ export default function Inventory() {
     if (!confirm(`¿Eliminar "${nombre}"?`)) return;
     try { await deleteEquipment(id); toast.success('Equipo eliminado'); load(); }
     catch { toast.error('Error al eliminar'); }
+  };
+
+  const toggleSelect = (id) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filtered.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filtered.map(eq => eq.id)));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (!selectedIds.size) return;
+    if (!confirm(`¿Eliminar ${selectedIds.size} equipo${selectedIds.size > 1 ? 's' : ''}? Esta acción no se puede deshacer.`)) return;
+    setBulkDeleting(true);
+    try {
+      await Promise.all([...selectedIds].map(id => deleteEquipment(id)));
+      toast.success(`${selectedIds.size} equipo${selectedIds.size > 1 ? 's' : ''} eliminado${selectedIds.size > 1 ? 's' : ''}`);
+      setSelectedIds(new Set());
+      load();
+    } catch { toast.error('Error al eliminar equipos'); }
+    finally { setBulkDeleting(false); }
   };
 
   const handleAddCategory = async (e) => {
@@ -136,6 +167,41 @@ export default function Inventory() {
         </select>
       </div>
 
+      {/* Bulk delete bar */}
+      {isAdmin && selectedIds.size > 0 && (
+        <div style={{
+          position: 'sticky', top: 12, zIndex: 50,
+          display: 'flex', alignItems: 'center', gap: 10,
+          background: 'var(--bg-card)', border: '1px solid rgba(224,48,48,0.5)',
+          borderRadius: 'var(--radius)', padding: '10px 16px',
+          marginBottom: 16, boxShadow: '0 4px 18px rgba(0,0,0,0.3)',
+        }}>
+          <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--red)', flex: 1 }}>
+            {selectedIds.size} equipo{selectedIds.size > 1 ? 's' : ''} seleccionado{selectedIds.size > 1 ? 's' : ''}
+          </span>
+          <button
+            className="btn btn-ghost btn-sm"
+            style={{ color: 'var(--red)', borderColor: 'rgba(224,48,48,0.4)' }}
+            onClick={handleBulkDelete}
+            disabled={bulkDeleting}
+          >
+            {bulkDeleting ? <span className="spinner" style={{ width: 14, height: 14 }} /> : <Trash2 size={14} />}
+            Eliminar seleccionados
+          </button>
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 4,
+              padding: '5px 10px', borderRadius: 20, cursor: 'pointer',
+              border: '1px solid var(--border)', background: 'transparent',
+              color: 'var(--text-muted)', fontSize: '0.78rem',
+            }}
+          >
+            <X size={12} /> Deseleccionar
+          </button>
+        </div>
+      )}
+
       {loading ? (
         <div style={{ textAlign: 'center', paddingTop: 60 }}><span className="spinner" style={{ display: 'inline-block', width: 32, height: 32 }} /></div>
       ) : grouped.length === 0 ? (
@@ -151,6 +217,25 @@ export default function Inventory() {
             <table>
               <thead>
                 <tr>
+                  {isAdmin && (
+                    <th style={{ width: 36, textAlign: 'center' }}>
+                      <input
+                        type="checkbox"
+                        checked={items.every(eq => selectedIds.has(eq.id))}
+                        onChange={() => {
+                          const allSelected = items.every(eq => selectedIds.has(eq.id));
+                          setSelectedIds(prev => {
+                            const next = new Set(prev);
+                            if (allSelected) items.forEach(eq => next.delete(eq.id));
+                            else items.forEach(eq => next.add(eq.id));
+                            return next;
+                          });
+                        }}
+                        style={{ cursor: 'pointer', accentColor: 'var(--red)', width: 14, height: 14 }}
+                        title="Seleccionar todos en esta categoría"
+                      />
+                    </th>
+                  )}
                   <th>Nombre</th>
                   <th>Categoría</th>
                   <th>Marca / Modelo</th>
@@ -163,7 +248,17 @@ export default function Inventory() {
                 {items.map(eq => {
                   const est = estadoInfo(eq.estado);
                   return (
-                    <tr key={eq.id}>
+                    <tr key={eq.id} style={{ background: selectedIds.has(eq.id) ? 'rgba(224,48,48,0.06)' : undefined }}>
+                      {isAdmin && (
+                        <td style={{ textAlign: 'center' }}>
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(eq.id)}
+                            onChange={() => toggleSelect(eq.id)}
+                            style={{ cursor: 'pointer', accentColor: 'var(--red)', width: 14, height: 14 }}
+                          />
+                        </td>
+                      )}
                       <td>
                         <div style={{ fontWeight: 600 }}>{eq.nombre}</div>
                         {eq.descripcion && <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{eq.descripcion}</div>}

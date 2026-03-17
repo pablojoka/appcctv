@@ -1180,7 +1180,7 @@ export default function EventDetail() {
                   <label className="form-label">Persona *</label>
                   <select className="form-control" required value={staffForm.user_id} onChange={e => setStaffForm(p => ({ ...p, user_id: e.target.value }))}>
                     <option value="">Seleccionar persona...</option>
-                    {users.filter(u => u.role === 'personal').map(u => (
+                    {users.map(u => (
                       <option key={u.id} value={u.id}>{u.apellido}, {u.nombre}</option>
                     ))}
                   </select>
