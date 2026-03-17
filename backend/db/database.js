@@ -31,6 +31,29 @@ try { db.exec('ALTER TABLE users ADD COLUMN avatar TEXT'); } catch {}
 // Equipment destination on report
 try { db.exec('ALTER TABLE reports ADD COLUMN destino_equipos TEXT'); } catch {}
 
+// Room-level estado
+try { db.exec("ALTER TABLE event_rooms ADD COLUMN estado TEXT DEFAULT 'abierta'"); } catch {}
+
+// Room reports table
+db.exec(`
+  CREATE TABLE IF NOT EXISTS room_reports (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    room_id INTEGER UNIQUE NOT NULL REFERENCES event_rooms(id) ON DELETE CASCADE,
+    encargado_id INTEGER REFERENCES users(id),
+    salio_segun_plan INTEGER DEFAULT 1,
+    problemas_tecnicos INTEGER DEFAULT 0,
+    descripcion_problemas TEXT,
+    calidad_streaming TEXT,
+    personal_suficiente INTEGER DEFAULT 1,
+    equipo_completo INTEGER DEFAULT 1,
+    equipos_con_fallas TEXT,
+    recomendaciones TEXT,
+    nota_general INTEGER,
+    destino_equipos TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

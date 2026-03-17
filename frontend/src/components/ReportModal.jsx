@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
-import { createReport } from '../services/api';
+import { createRoomReport } from '../services/api';
 import { toast } from 'react-toastify';
-import { Star, Warehouse, MapPin } from 'lucide-react';
+import { Star, Warehouse, MapPin, Lock } from 'lucide-react';
 
 const CALIDAD_OPTS = [
   { value: 'excelente', label: 'Excelente' },
@@ -10,22 +10,9 @@ const CALIDAD_OPTS = [
   { value: 'mala', label: 'Mala' },
 ];
 
-export default function ReportModal({ eventId, eventName, event, onClose, onSuccess }) {
-  // Build flat equipment list from event rooms
-  const allEquipment = useMemo(() => {
-    if (!event?.rooms) return [];
-    return event.rooms.flatMap(room =>
-      (room.equipment || []).map(eq => ({
-        id: eq.id,
-        equipment_id: eq.equipment_id,
-        nombre: eq.equipo_nombre,
-        sala: room.nombre,
-        cantidad: eq.cantidad,
-      }))
-    );
-  }, [event]);
+export default function ReportModal({ room, eventName, onClose, onSuccess }) {
+  const allEquipment = useMemo(() => room?.equipment || [], [room]);
 
-  // destinos: { [room_equipment_id]: { destino: 'deposito'|'otro', predio: '' } }
   const [destinos, setDestinos] = useState(() =>
     Object.fromEntries(allEquipment.map(eq => [eq.id, { destino: 'deposito', predio: '' }]))
   );
@@ -50,27 +37,31 @@ export default function ReportModal({ eventId, eventName, event, onClose, onSucc
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    // Validate "otro predio" fields
-    const sinPredio = allEquipment.filter(eq => destinos[eq.id]?.destino === 'otro' && !destinos[eq.id]?.predio?.trim());
+    const sinPredio = allEquipment.filter(eq =>
+      destinos[eq.id]?.destino === 'otro' && !destinos[eq.id]?.predio?.trim()
+    );
     if (sinPredio.length > 0) {
-      toast.error(`Completá el destino para: ${sinPredio.map(e => e.nombre).join(', ')}`);
+      toast.error(`Completá el destino para: ${sinPredio.map(e => e.equipo_nombre).join(', ')}`);
       return;
     }
     setSaving(true);
     const destino_equipos = allEquipment.map(eq => ({
       equipment_id: eq.equipment_id,
-      nombre: eq.nombre,
-      sala: eq.sala,
+      nombre: eq.equipo_nombre,
       cantidad: eq.cantidad,
       destino: destinos[eq.id]?.destino || 'deposito',
       predio: destinos[eq.id]?.destino === 'otro' ? destinos[eq.id]?.predio : null,
     }));
     try {
-      await createReport({ event_id: parseInt(eventId), ...form, destino_equipos });
-      toast.success('Reporte creado. Evento cerrado.');
+      const res = await createRoomReport({ room_id: room.id, ...form, destino_equipos });
+      if (res.data.event_closed) {
+        toast.success('Sala cerrada. ¡Evento finalizado automáticamente!');
+      } else {
+        toast.success('Sala cerrada correctamente.');
+      }
       onSuccess();
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Error al crear reporte');
+      toast.error(err.response?.data?.error || 'Error al cerrar sala');
     } finally { setSaving(false); }
   };
 
@@ -103,7 +94,10 @@ export default function ReportModal({ eventId, eventName, event, onClose, onSucc
       <div className="modal modal-lg">
         <div className="modal-header">
           <div>
-            <h2>Cerrar evento y generar reporte</h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Lock size={16} color="var(--accent)" />
+              <h2>Cerrar sala — {room?.nombre}</h2>
+            </div>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginTop: 2 }}>{eventName}</p>
           </div>
           <button className="btn-icon" onClick={onClose}>✕</button>
@@ -111,7 +105,7 @@ export default function ReportModal({ eventId, eventName, event, onClose, onSucc
         <form onSubmit={handleSubmit}>
           <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
 
-            <BoolField label="¿El evento salió según lo planeado?" field="salio_segun_plan" />
+            <BoolField label="¿La sala salió según lo planeado?" field="salio_segun_plan" />
             <BoolField label="¿Hubo problemas técnicos?" field="problemas_tecnicos" />
 
             {form.problemas_tecnicos && (
@@ -162,7 +156,6 @@ export default function ReportModal({ eventId, eventName, event, onClose, onSucc
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                   <Warehouse size={15} color="var(--accent)" />
                   <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.95rem' }}>Destino de equipos</span>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>— ¿A dónde va cada equipo?</span>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {allEquipment.map(eq => {
@@ -171,8 +164,8 @@ export default function ReportModal({ eventId, eventName, event, onClose, onSucc
                       <div key={eq.id} style={{ background: 'var(--bg-elevated)', borderRadius: 8, padding: '10px 12px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{eq.nombre}</div>
-                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{eq.sala} · x{eq.cantidad}</div>
+                            <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{eq.equipo_nombre}</div>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{eq.categoria} · x{eq.cantidad}</div>
                           </div>
                           <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                             {[
@@ -216,8 +209,8 @@ export default function ReportModal({ eventId, eventName, event, onClose, onSucc
               </div>
             )}
 
-            <div className="form-group">
-              <label className="form-label">Nota general del evento (1–5)</label>
+            <div className="form-group" style={{ marginTop: 8 }}>
+              <label className="form-label">Nota general de la sala (1–5)</label>
               <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                 {[1, 2, 3, 4, 5].map(n => (
                   <button
@@ -244,7 +237,7 @@ export default function ReportModal({ eventId, eventName, event, onClose, onSucc
           <div className="modal-footer">
             <button type="button" className="btn btn-ghost" onClick={onClose}>Cancelar</button>
             <button type="submit" className="btn btn-primary" disabled={saving}>
-              {saving ? <span className="spinner" style={{ width: 16, height: 16 }} /> : 'Cerrar evento y guardar reporte'}
+              {saving ? <span className="spinner" style={{ width: 16, height: 16 }} /> : <><Lock size={14} /> Cerrar sala</>}
             </button>
           </div>
         </form>

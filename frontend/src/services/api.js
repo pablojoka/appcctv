@@ -73,8 +73,9 @@ export const getUserAvatarUrl = (id) => {
 
 // Reports
 export const getReports = () => api.get('/reports');
-export const getReport = (eventId) => api.get(`/reports/${eventId}`);
-export const createReport = (data) => api.post('/reports', data);
+export const getEventReports = (eventId) => api.get(`/reports/event/${eventId}`);
+export const getRoomReport = (roomId) => api.get(`/reports/room/${roomId}`);
+export const createRoomReport = (data) => api.post('/reports/rooms', data);
 
 // Tutorials
 export const getTutorials = () => api.get('/tutorials');

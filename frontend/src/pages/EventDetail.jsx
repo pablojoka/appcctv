@@ -4,7 +4,8 @@ import {
   getEvent, updateEvent, createRoom, deleteRoom,
   addRoomEquipment, removeRoomEquipment, addRoomStaff, updateRoomStaff, removeRoomStaff,
   getInventory, getUsers, updateEquipmentCheckout,
-  getEventPhotos, uploadEventPhoto, deleteEventPhoto, getEventPhotoUrl, getUserAvatarUrl
+  getEventPhotos, uploadEventPhoto, deleteEventPhoto, getEventPhotoUrl, getUserAvatarUrl,
+  getRoomReport
 } from '../services/api';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -12,7 +13,7 @@ import { toast } from 'react-toastify';
 import { useAuth } from '../context/AuthContext';
 import {
   ArrowLeft, Plus, Trash2, Edit2, Users, Package, MapPin, Hash, Calendar, FileText,
-  MessageSquare, Copy, Check, Download, Camera, Upload, X, Truck, RotateCcw
+  MessageSquare, Copy, Check, Download, Camera, Upload, X, Truck, RotateCcw, Lock, Unlock
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -240,6 +241,7 @@ export default function EventDetail() {
   const [roomName, setRoomName] = useState('');
   const [roomDesc, setRoomDesc] = useState('');
   const [showReport, setShowReport] = useState(false);
+  const [closeRoomTarget, setCloseRoomTarget] = useState(null); // room object
   const [msgModal, setMsgModal] = useState(null);
   const [copied, setCopied] = useState(false);
   const [activeRoom, setActiveRoom] = useState(null);
@@ -529,11 +531,6 @@ export default function EventDetail() {
           <div style={{ display: 'flex', gap: 10 }}>
             <button className="btn btn-ghost btn-sm" onClick={() => generateOrdenServicio(event)}><Download size={14} /> Orden de servicio</button>
             <button className="btn btn-ghost btn-sm" onClick={() => setEditingEvent(true)}><Edit2 size={14} /> Editar</button>
-            {event.estado !== 'finalizado' && (
-              <button className="btn btn-primary btn-sm" onClick={() => setShowReport(true)}>
-                <FileText size={14} /> Cerrar evento
-              </button>
-            )}
           </div>
         )}
       </div>
@@ -710,14 +707,32 @@ export default function EventDetail() {
       {event.rooms?.map(room => (
         <div key={room.id} className="card" style={{ marginBottom: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <div>
-              <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1rem' }}>{room.nombre}</h3>
-              {room.descripcion && <p style={{ color: 'var(--text-muted)', fontSize: '0.83rem', marginTop: 3 }}>{room.descripcion}</p>}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div>
+                <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1rem' }}>{room.nombre}</h3>
+                {room.descripcion && <p style={{ color: 'var(--text-muted)', fontSize: '0.83rem', marginTop: 3 }}>{room.descripcion}</p>}
+              </div>
+              {room.estado === 'cerrada' ? (
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 20, padding: '3px 10px' }}>
+                  <Lock size={11} /> Cerrada
+                </span>
+              ) : (
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.72rem', fontWeight: 700, color: 'var(--green)', background: 'var(--green-dim)', border: '1px solid rgba(46,213,115,0.3)', borderRadius: 20, padding: '3px 10px' }}>
+                  <Unlock size={11} /> Abierta
+                </span>
+              )}
             </div>
             {isAdmin && (
-              <button className="btn-icon" style={{ color: 'var(--red)' }} onClick={() => handleDeleteRoom(room.id)}>
-                <Trash2 size={14} />
-              </button>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                {room.estado !== 'cerrada' && (
+                  <button className="btn btn-primary btn-sm" style={{ fontSize: '0.75rem' }} onClick={() => setCloseRoomTarget(room)}>
+                    <Lock size={13} /> Cerrar sala
+                  </button>
+                )}
+                <button className="btn-icon" style={{ color: 'var(--red)' }} onClick={() => handleDeleteRoom(room.id)}>
+                  <Trash2 size={14} />
+                </button>
+              </div>
             )}
           </div>
 
@@ -1237,6 +1252,14 @@ export default function EventDetail() {
         </div>
       )}
 
+      {closeRoomTarget && (
+        <ReportModal
+          room={closeRoomTarget}
+          eventName={event.nombre}
+          onClose={() => setCloseRoomTarget(null)}
+          onSuccess={() => { setCloseRoomTarget(null); load(); }}
+        />
+      )}
       {showReport && (
         <ReportModal eventId={id} eventName={event.nombre} event={event} onClose={() => setShowReport(false)} onSuccess={() => { setShowReport(false); load(); }} />
       )}
