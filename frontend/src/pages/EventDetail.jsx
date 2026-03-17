@@ -5,10 +5,283 @@ import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'react-toastify';
 import { useAuth } from '../context/AuthContext';
-import { ArrowLeft, Plus, Trash2, Edit2, Users, Package, MapPin, Hash, Calendar, FileText, MessageSquare, Copy, Check } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Edit2, Users, Package, MapPin, Hash, Calendar, FileText, MessageSquare, Copy, Check, Download } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const COLOR_PRESETS = ['#e03030','#e07830','#e0c030','#30a050','#3080e0','#8030e0','#e030a0','#30d0d0'];
 import ReportModal from '../components/ReportModal';
+
+const STATUS_LABELS_PDF = { a_confirmar: 'A CONFIRMAR', confirmado: 'CONFIRMADO', finalizado: 'FINALIZADO' };
+
+async function generateOrdenServicio(event) {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const margin = 18;
+  const contentW = pageW - margin * 2;
+  const fmt = (d) => { try { return format(parseISO(d), 'dd/MM/yyyy'); } catch { return d || '—'; } };
+
+  // Load logo
+  let logoData = null;
+  try {
+    const res = await fetch('/logo.jpg');
+    const blob = await res.blob();
+    logoData = await new Promise(resolve => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.readAsDataURL(blob);
+    });
+  } catch {}
+
+  const drawHeader = (pageNum) => {
+    // Top bar
+    doc.setFillColor(15, 15, 15);
+    doc.rect(0, 0, pageW, 28, 'F');
+
+    // Logo
+    if (logoData) {
+      doc.addImage(logoData, 'JPEG', margin, 4, 20, 20);
+    }
+
+    // Company name
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.setTextColor(255, 255, 255);
+    doc.text('CCTV/', logoData ? margin + 24 : margin, 13);
+    const cctvW = doc.getTextWidth('CCTV/');
+    doc.setTextColor(224, 48, 48);
+    doc.text('VMIX', logoData ? margin + 24 + cctvW : margin + cctvW, 13);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(160, 160, 160);
+    doc.text('Sistema de Gestión de Eventos', logoData ? margin + 24 : margin, 20);
+
+    // Title block (right)
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.setTextColor(255, 255, 255);
+    doc.text('ORDEN DE SERVICIO', pageW - margin, 12, { align: 'right' });
+    doc.setFontSize(9);
+    doc.setTextColor(224, 48, 48);
+    doc.text(`N° ${event.numero_orden}`, pageW - margin, 20, { align: 'right' });
+
+    // Page number
+    if (pageNum > 1) {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7);
+      doc.setTextColor(180, 180, 180);
+      doc.text(`Página ${pageNum}`, pageW - margin, 26, { align: 'right' });
+    }
+  };
+
+  const drawFooter = () => {
+    const y = pageH - 10;
+    doc.setDrawColor(50, 50, 50);
+    doc.setLineWidth(0.3);
+    doc.line(margin, y - 4, pageW - margin, y - 4);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(130, 130, 130);
+    doc.text(`Generado el ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, margin, y);
+    doc.text('Congress CCTV/VMIX', pageW - margin, y, { align: 'right' });
+  };
+
+  // --- PAGE 1 ---
+  drawHeader(1);
+  let y = 36;
+
+  // Event info block
+  doc.setFillColor(22, 22, 22);
+  doc.setDrawColor(50, 50, 50);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(margin, y, contentW, 38, 2, 2, 'FD');
+
+  // Event color stripe
+  if (event.color) {
+    const hex = event.color.replace('#', '');
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+    doc.setFillColor(r, g, b);
+    doc.roundedRect(margin, y, 4, 38, 2, 2, 'F');
+    doc.rect(margin + 2, y, 2, 38, 'F');
+  }
+
+  const bx = margin + 8;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(14);
+  doc.setTextColor(255, 255, 255);
+  doc.text(event.nombre, bx, y + 10);
+
+  // Status badge
+  const statusLabel = STATUS_LABELS_PDF[event.estado] || event.estado;
+  const statusColor = event.estado === 'confirmado' ? [48, 160, 80] : event.estado === 'finalizado' ? [100, 100, 100] : [224, 200, 48];
+  doc.setFillColor(...statusColor);
+  const sw = doc.getTextWidth(statusLabel) + 6;
+  doc.roundedRect(pageW - margin - sw - 4, y + 4, sw + 4, 7, 1, 1, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7);
+  doc.setTextColor(0, 0, 0);
+  doc.text(statusLabel, pageW - margin - sw / 2 - 2, y + 9, { align: 'center' });
+
+  // Info fields
+  const infoY = y + 18;
+  const cols = [
+    { label: 'INICIO', value: fmt(event.fecha_inicio) },
+    { label: 'FINALIZACIÓN', value: fmt(event.fecha_finalizacion) },
+    { label: 'ARMADO', value: event.fecha_armado ? fmt(event.fecha_armado) : '—' },
+    { label: 'HORARIO', value: event.hora_ingreso || '—' },
+  ];
+  const colW = contentW / cols.length;
+  cols.forEach((col, i) => {
+    const cx = bx + i * colW;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(130, 130, 130);
+    doc.text(col.label, cx, infoY);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(220, 220, 220);
+    doc.text(col.value, cx, infoY + 6);
+  });
+
+  if (event.ubicacion) {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(160, 160, 160);
+    doc.text(`📍 ${event.ubicacion}`, bx, y + 34);
+  }
+
+  y += 46;
+
+  // Rooms
+  const rooms = event.rooms || [];
+  let pageNum = 1;
+
+  for (let ri = 0; ri < rooms.length; ri++) {
+    const room = rooms[ri];
+    const equipment = room.equipment || [];
+    if (equipment.length === 0) continue;
+
+    // Group by category
+    const grouped = {};
+    equipment.forEach(eq => {
+      const cat = eq.categoria || 'Sin categoría';
+      if (!grouped[cat]) grouped[cat] = [];
+      grouped[cat].push(eq);
+    });
+
+    // Check space — section header + at least one row
+    if (y > pageH - 50) {
+      drawFooter();
+      doc.addPage();
+      pageNum++;
+      drawHeader(pageNum);
+      y = 36;
+    }
+
+    // Room header
+    doc.setFillColor(35, 35, 35);
+    doc.rect(margin, y, contentW, 9, 'F');
+    doc.setFillColor(224, 48, 48);
+    doc.rect(margin, y, 3, 9, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(255, 255, 255);
+    doc.text(`SALA: ${room.nombre.toUpperCase()}`, margin + 7, y + 6.5);
+    if (room.descripcion) {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(160, 160, 160);
+      doc.text(room.descripcion, pageW - margin, y + 6.5, { align: 'right' });
+    }
+    y += 12;
+
+    // Tables per category
+    for (const [cat, items] of Object.entries(grouped)) {
+      if (y > pageH - 40) {
+        drawFooter();
+        doc.addPage();
+        pageNum++;
+        drawHeader(pageNum);
+        y = 36;
+      }
+
+      // Category label
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor(180, 180, 180);
+      doc.text(cat.toUpperCase(), margin + 2, y + 4);
+      y += 7;
+
+      autoTable(doc, {
+        startY: y,
+        margin: { left: margin, right: margin },
+        head: [['Equipo', 'Marca / Modelo', 'Cant.']],
+        body: items.map(eq => [
+          eq.equipo_nombre,
+          [eq.marca, eq.modelo].filter(Boolean).join(' ') || '—',
+          `×${eq.cantidad}`,
+        ]),
+        styles: {
+          fontSize: 9,
+          cellPadding: { top: 3, bottom: 3, left: 4, right: 4 },
+          textColor: [210, 210, 210],
+          fillColor: [18, 18, 18],
+          lineColor: [45, 45, 45],
+          lineWidth: 0.2,
+        },
+        headStyles: {
+          fillColor: [30, 30, 30],
+          textColor: [140, 140, 140],
+          fontStyle: 'bold',
+          fontSize: 7.5,
+          halign: 'left',
+        },
+        columnStyles: {
+          0: { cellWidth: 'auto' },
+          1: { cellWidth: 65, textColor: [150, 150, 150] },
+          2: { cellWidth: 18, halign: 'center', fontStyle: 'bold', textColor: [224, 48, 48] },
+        },
+        alternateRowStyles: { fillColor: [22, 22, 22] },
+        theme: 'grid',
+        didDrawPage: () => {},
+      });
+
+      y = doc.lastAutoTable.finalY + 6;
+    }
+
+    y += 4;
+  }
+
+  // Notes
+  if (event.notas) {
+    if (y > pageH - 40) {
+      drawFooter();
+      doc.addPage();
+      pageNum++;
+      drawHeader(pageNum);
+      y = 36;
+    }
+    doc.setFillColor(22, 22, 22);
+    doc.setDrawColor(50, 50, 50);
+    doc.roundedRect(margin, y, contentW, 22, 2, 2, 'FD');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(130, 130, 130);
+    doc.text('NOTAS', margin + 4, y + 7);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(200, 200, 200);
+    const lines = doc.splitTextToSize(event.notas, contentW - 8);
+    doc.text(lines.slice(0, 2), margin + 4, y + 14);
+  }
+
+  drawFooter();
+  doc.save(`Orden_Servicio_${event.numero_orden}.pdf`);
+}
 
 const STATUS_OPTS = ['a_confirmar', 'confirmado', 'finalizado'];
 const STATUS_LABELS = { a_confirmar: 'A confirmar', confirmado: 'Confirmado', finalizado: 'Finalizado' };
@@ -177,6 +450,7 @@ export default function EventDetail() {
         </div>
         {isAdmin && (
           <div style={{ display: 'flex', gap: 10 }}>
+            <button className="btn btn-ghost btn-sm" onClick={() => generateOrdenServicio(event)}><Download size={14} /> Orden de servicio</button>
             <button className="btn btn-ghost btn-sm" onClick={() => setEditingEvent(true)}><Edit2 size={14} /> Editar</button>
             {event.estado !== 'finalizado' && (
               <button className="btn btn-primary btn-sm" onClick={() => setShowReport(true)}>
