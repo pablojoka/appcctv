@@ -1,12 +1,68 @@
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 const db = require('../db/database');
 const { authMiddleware, adminOnly } = require('../middleware/auth');
 
+// Avatar upload setup
+const AVATARS_DIR = path.join(__dirname, '..', 'uploads', 'avatars');
+if (!fs.existsSync(AVATARS_DIR)) fs.mkdirSync(AVATARS_DIR, { recursive: true });
+
+const avatarStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, AVATARS_DIR),
+  filename: (req, file, cb) => cb(null, `user_${req.params.id}${path.extname(file.originalname).toLowerCase() || '.jpg'}`)
+});
+const avatarUpload = multer({
+  storage: avatarStorage,
+  fileFilter: (req, file, cb) => {
+    if (['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype)) cb(null, true);
+    else cb(new Error('Solo JPG, PNG o WEBP'));
+  },
+  limits: { fileSize: 5 * 1024 * 1024 }
+});
+
+// GET avatar file (authenticated via header or query param)
+router.get('/:id/avatar', (req, res) => {
+  const jwt = require('jsonwebtoken');
+  const token = req.headers.authorization?.split(' ')[1] || req.query.token;
+  if (!token) return res.status(401).json({ error: 'Token requerido' });
+  try { jwt.verify(token, process.env.JWT_SECRET || 'congress_cctv_secret_2024'); }
+  catch { return res.status(401).json({ error: 'Token inválido' }); }
+  const user = db.prepare('SELECT avatar FROM users WHERE id = ?').get(req.params.id);
+  if (!user?.avatar) return res.status(404).json({ error: 'Sin avatar' });
+  const filePath = path.join(AVATARS_DIR, user.avatar);
+  if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Archivo no encontrado' });
+  const ext = path.extname(user.avatar).toLowerCase();
+  const mime = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp' }[ext] || 'image/jpeg';
+  res.setHeader('Content-Type', mime);
+  fs.createReadStream(filePath).pipe(res);
+});
+
+// POST upload avatar (admin only)
+router.post('/:id/avatar', authMiddleware, adminOnly, avatarUpload.single('avatar'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Imagen requerida' });
+  const filename = req.file.filename;
+  db.prepare('UPDATE users SET avatar = ? WHERE id = ?').run(filename, req.params.id);
+  res.json({ success: true, avatar: filename });
+});
+
+// DELETE avatar (admin only)
+router.delete('/:id/avatar', authMiddleware, adminOnly, (req, res) => {
+  const user = db.prepare('SELECT avatar FROM users WHERE id = ?').get(req.params.id);
+  if (user?.avatar) {
+    const filePath = path.join(AVATARS_DIR, user.avatar);
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    db.prepare('UPDATE users SET avatar = NULL WHERE id = ?').run(req.params.id);
+  }
+  res.json({ success: true });
+});
+
 // GET all users (admin only)
 router.get('/', authMiddleware, adminOnly, (req, res) => {
-  const users = db.prepare('SELECT id, nombre, apellido, telefono, email, username, role, created_at FROM users ORDER BY apellido').all();
+  const users = db.prepare('SELECT id, nombre, apellido, telefono, email, username, role, avatar, created_at FROM users ORDER BY apellido').all();
   res.json(users);
 });
 

@@ -25,6 +25,9 @@ try { db.exec('ALTER TABLE room_equipment ADD COLUMN fecha_devolucion TEXT'); } 
 // User email migration
 try { db.exec('ALTER TABLE users ADD COLUMN email TEXT'); } catch {}
 
+// User avatar migration
+try { db.exec('ALTER TABLE users ADD COLUMN avatar TEXT'); } catch {}
+
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

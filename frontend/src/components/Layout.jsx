@@ -8,7 +8,7 @@ import {
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard', exact: true },
   { to: '/events', icon: Calendar, label: 'Eventos' },
-  { to: '/inventory', icon: Package, label: 'Inventario' },
+  { to: '/inventory', icon: Package, label: 'Inventario', adminOnly: true },
   { to: '/personnel', icon: Users, label: 'Personal', adminOnly: true },
   { to: '/reports', icon: FileText, label: 'Reportes' },
   { to: '/tutorials', icon: BookOpen, label: 'Tutoriales' },

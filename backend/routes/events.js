@@ -121,6 +121,15 @@ router.post('/rooms/:roomId/staff', authMiddleware, adminOnly, (req, res) => {
   res.status(201).json({ id: result.lastInsertRowid });
 });
 
+router.put('/rooms/staff/:id', authMiddleware, adminOnly, (req, res) => {
+  const { puesto } = req.body;
+  if (!puesto) return res.status(400).json({ error: 'puesto requerido' });
+  const entry = db.prepare('SELECT id FROM room_staff WHERE id = ?').get(req.params.id);
+  if (!entry) return res.status(404).json({ error: 'Asignación no encontrada' });
+  db.prepare('UPDATE room_staff SET puesto = ? WHERE id = ?').run(puesto, req.params.id);
+  res.json({ success: true });
+});
+
 router.delete('/rooms/staff/:id', authMiddleware, adminOnly, (req, res) => {
   db.prepare('DELETE FROM room_staff WHERE id = ?').run(req.params.id);
   res.json({ success: true });
@@ -213,7 +222,7 @@ router.get('/:id', authMiddleware, (req, res) => {
     `).all(room.id);
 
     room.staff = db.prepare(`
-      SELECT rs.*, u.nombre, u.apellido, u.telefono
+      SELECT rs.*, u.nombre, u.apellido, u.telefono, u.avatar
       FROM room_staff rs
       JOIN users u ON u.id = rs.user_id
       WHERE rs.room_id = ?

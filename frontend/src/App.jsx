@@ -30,7 +30,7 @@ function AppRoutes() {
         <Route index element={<Dashboard />} />
         <Route path="events" element={<Events />} />
         <Route path="events/:id" element={<EventDetail />} />
-        <Route path="inventory" element={<Inventory />} />
+        <Route path="inventory" element={<PrivateRoute adminOnly><Inventory /></PrivateRoute>} />
         <Route path="personnel" element={<PrivateRoute adminOnly><Personnel /></PrivateRoute>} />
         <Route path="reports" element={<Reports />} />
         <Route path="tutorials" element={<Tutorials />} />

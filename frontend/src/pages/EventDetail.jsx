@@ -2,9 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   getEvent, updateEvent, createRoom, deleteRoom,
-  addRoomEquipment, removeRoomEquipment, addRoomStaff, removeRoomStaff,
+  addRoomEquipment, removeRoomEquipment, addRoomStaff, updateRoomStaff, removeRoomStaff,
   getInventory, getUsers, updateEquipmentCheckout,
-  getEventPhotos, uploadEventPhoto, deleteEventPhoto, getEventPhotoUrl
+  getEventPhotos, uploadEventPhoto, deleteEventPhoto, getEventPhotoUrl, getUserAvatarUrl
 } from '../services/api';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -363,6 +363,18 @@ export default function EventDetail() {
   const handleRemoveStaff = async (staffId) => {
     try { await removeRoomStaff(staffId); load(); }
     catch { toast.error('Error'); }
+  };
+
+  const [editingStaff, setEditingStaff] = useState(null); // { id, puesto }
+
+  const handleUpdateStaff = async () => {
+    if (!editingStaff?.puesto?.trim()) return;
+    try {
+      await updateRoomStaff(editingStaff.id, { puesto: editingStaff.puesto });
+      toast.success('Puesto actualizado');
+      setEditingStaff(null);
+      load();
+    } catch { toast.error('Error al actualizar puesto'); }
   };
 
   const handleCheckoutChange = async (eqId, newStatus) => {
@@ -842,26 +854,52 @@ export default function EventDetail() {
               {room.staff?.length === 0 ? (
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>Sin personal asignado</p>
               ) : room.staff?.map(st => (
-                <div key={st.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: 'var(--bg-elevated)', borderRadius: 8, marginBottom: 6 }}>
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{st.nombre} {st.apellido}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--accent)' }}>{st.puesto}</div>
-                  </div>
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <button
-                      className="btn-icon"
-                      style={{ width: 26, height: 26 }}
-                      title="Generar citación"
-                      onClick={() => { setCopied(false); setMsgModal({ nombre: st.nombre, apellido: st.apellido, puesto: st.puesto, sala: room.nombre }); }}
-                    >
-                      <MessageSquare size={12} />
-                    </button>
-                    {isAdmin && (
-                      <button className="btn-icon" style={{ width: 26, height: 26, color: 'var(--red)' }} onClick={() => handleRemoveStaff(st.id)}>
-                        <Trash2 size={12} />
-                      </button>
-                    )}
-                  </div>
+                <div key={st.id} style={{ padding: '8px 10px', background: 'var(--bg-elevated)', borderRadius: 8, marginBottom: 6 }}>
+                  {editingStaff?.id === st.id ? (
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <input
+                        className="form-control"
+                        style={{ flex: 1, fontSize: '0.82rem', padding: '4px 8px', height: 30 }}
+                        value={editingStaff.puesto}
+                        onChange={e => setEditingStaff(p => ({ ...p, puesto: e.target.value }))}
+                        onKeyDown={e => { if (e.key === 'Enter') handleUpdateStaff(); if (e.key === 'Escape') setEditingStaff(null); }}
+                        autoFocus
+                      />
+                      <button className="btn btn-primary btn-sm" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={handleUpdateStaff}>Guardar</button>
+                      <button className="btn btn-ghost btn-sm" style={{ padding: '4px 8px', fontSize: '0.75rem' }} onClick={() => setEditingStaff(null)}>✕</button>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        {st.avatar ? (
+                          <img src={getUserAvatarUrl(st.user_id)} alt={st.nombre} style={{ width: 30, height: 30, borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--border)', flexShrink: 0 }} />
+                        ) : (
+                          <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'var(--bg-card)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)' }}>{st.nombre?.[0]}{st.apellido?.[0]}</span>
+                          </div>
+                        )}
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{st.nombre} {st.apellido}</div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--accent)' }}>{st.puesto}</div>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button className="btn-icon" style={{ width: 26, height: 26 }} title="Generar citación"
+                          onClick={() => { setCopied(false); setMsgModal({ nombre: st.nombre, apellido: st.apellido, puesto: st.puesto, sala: room.nombre }); }}>
+                          <MessageSquare size={12} />
+                        </button>
+                        {isAdmin && <>
+                          <button className="btn-icon" style={{ width: 26, height: 26 }} title="Editar puesto"
+                            onClick={() => setEditingStaff({ id: st.id, puesto: st.puesto })}>
+                            <Edit2 size={12} />
+                          </button>
+                          <button className="btn-icon" style={{ width: 26, height: 26, color: 'var(--red)' }} onClick={() => handleRemoveStaff(st.id)}>
+                            <Trash2 size={12} />
+                          </button>
+                        </>}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

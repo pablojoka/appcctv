@@ -51,6 +51,7 @@ export const updateEquipmentCheckout = (id, data) => api.put(`/events/rooms/equi
 
 // Room staff
 export const addRoomStaff = (roomId, data) => api.post(`/events/rooms/${roomId}/staff`, data);
+export const updateRoomStaff = (id, data) => api.put(`/events/rooms/staff/${id}`, data);
 export const removeRoomStaff = (id) => api.delete(`/events/rooms/staff/${id}`);
 
 // Inventory
@@ -63,6 +64,12 @@ export const createCategory = (data) => api.post('/inventory/categories', data);
 export const getEquipmentHistory = (id) => api.get(`/inventory/${id}/history`);
 export const deleteEquipmentHistory = (id) => api.delete(`/inventory/history/${id}`);
 export const deleteUserHistory = (id) => api.delete(`/users/history/${id}`);
+export const uploadUserAvatar = (id, formData) => api.post(`/users/${id}/avatar`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+export const deleteUserAvatar = (id) => api.delete(`/users/${id}/avatar`);
+export const getUserAvatarUrl = (id) => {
+  const token = localStorage.getItem('token');
+  return `/api/users/${id}/avatar${token ? `?token=${token}` : ''}`;
+};
 
 // Reports
 export const getReports = () => api.get('/reports');

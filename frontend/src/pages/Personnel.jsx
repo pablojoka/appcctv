@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
-import { getUsers, createUser, updateUser, deleteUser, getUserHistory, deleteUserHistory } from '../services/api';
+import { useState, useEffect, useRef } from 'react';
+import { getUsers, createUser, updateUser, deleteUser, getUserHistory, deleteUserHistory, uploadUserAvatar, deleteUserAvatar, getUserAvatarUrl } from '../services/api';
 import { toast } from 'react-toastify';
-import { Plus, Search, Trash2, Edit2, Users, Phone, History, Calendar, Mail } from 'lucide-react';
+import { Plus, Search, Trash2, Edit2, Users, Phone, History, Calendar, Mail, Camera } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -108,7 +108,7 @@ export default function Personnel() {
                 <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Administradores</h2>
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>({admins.length})</span>
               </div>
-              <UserTable users={admins} onEdit={openEdit} onDelete={handleDelete} onHistory={openHistory} />
+              <UserTable users={admins} onEdit={openEdit} onDelete={handleDelete} onHistory={openHistory} onAvatarChange={load} />
             </div>
           )}
           {personal.length > 0 && (
@@ -118,7 +118,7 @@ export default function Personnel() {
                 <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Operadores / Personal</h2>
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>({personal.length})</span>
               </div>
-              <UserTable users={personal} onEdit={openEdit} onDelete={handleDelete} onHistory={openHistory} />
+              <UserTable users={personal} onEdit={openEdit} onDelete={handleDelete} onHistory={openHistory} onAvatarChange={load} />
             </div>
           )}
           {filtered.length === 0 && (
@@ -266,12 +266,35 @@ export default function Personnel() {
   );
 }
 
-function UserTable({ users, onEdit, onDelete, onHistory }) {
+function UserTable({ users, onEdit, onDelete, onHistory, onAvatarChange }) {
+  const avatarInputRef = useRef(null);
+  const [uploadingFor, setUploadingFor] = useState(null);
+
+  const handleAvatarClick = (userId) => {
+    setUploadingFor(userId);
+    avatarInputRef.current.click();
+  };
+
+  const handleAvatarFile = async (e) => {
+    const file = e.target.files[0];
+    if (!file || !uploadingFor) return;
+    const fd = new FormData();
+    fd.append('avatar', file);
+    try {
+      await uploadUserAvatar(uploadingFor, fd);
+      onAvatarChange();
+    } catch { toast.error('Error al subir foto'); }
+    e.target.value = '';
+    setUploadingFor(null);
+  };
+
   return (
     <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+      <input ref={avatarInputRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }} onChange={handleAvatarFile} />
       <table>
         <thead>
           <tr>
+            <th style={{ width: 48 }}></th>
             <th>Nombre</th>
             <th>Usuario</th>
             <th>Teléfono</th>
@@ -283,6 +306,42 @@ function UserTable({ users, onEdit, onDelete, onHistory }) {
         <tbody>
           {users.map(u => (
             <tr key={u.id}>
+              <td style={{ padding: '6px 8px' }}>
+                <div
+                  style={{ position: 'relative', width: 36, height: 36, cursor: 'pointer' }}
+                  title="Cambiar foto"
+                  onClick={() => handleAvatarClick(u.id)}
+                >
+                  {u.avatar ? (
+                    <img
+                      src={getUserAvatarUrl(u.id)}
+                      alt={u.nombre}
+                      style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--border)' }}
+                    />
+                  ) : (
+                    <div style={{
+                      width: 36, height: 36, borderRadius: '50%',
+                      background: 'var(--bg-elevated)', border: '2px solid var(--border)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      color: 'var(--text-muted)',
+                    }}>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 700 }}>
+                        {u.nombre[0]}{u.apellido[0]}
+                      </span>
+                    </div>
+                  )}
+                  <div style={{
+                    position: 'absolute', inset: 0, borderRadius: '50%',
+                    background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    opacity: 0, transition: 'opacity 0.15s',
+                  }}
+                    onMouseEnter={e => e.currentTarget.style.opacity = 1}
+                    onMouseLeave={e => e.currentTarget.style.opacity = 0}
+                  >
+                    <Camera size={14} color="#fff" />
+                  </div>
+                </div>
+              </td>
               <td style={{ fontWeight: 600 }}>{u.apellido}, {u.nombre}</td>
               <td style={{ color: 'var(--text-secondary)', fontFamily: 'monospace', fontSize: '0.85rem' }}>@{u.username}</td>
               <td>
