@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { getUsers, createUser, updateUser, deleteUser, getUserHistory, deleteUserHistory } from '../services/api';
 import { toast } from 'react-toastify';
-import { Plus, Search, Trash2, Edit2, Users, Phone, History, Calendar } from 'lucide-react';
+import { Plus, Search, Trash2, Edit2, Users, Phone, History, Calendar, Mail } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-const INIT_FORM = { nombre: '', apellido: '', telefono: '', username: '', password: '', role: 'personal' };
+const INIT_FORM = { nombre: '', apellido: '', telefono: '', email: '', username: '', password: '', role: 'personal' };
 
 const STATUS_CLS = { a_confirmar: 'badge-pending', confirmado: 'badge-active', finalizado: 'badge-closed' };
 const STATUS_LABELS = { a_confirmar: 'A confirmar', confirmado: 'Confirmado', finalizado: 'Finalizado' };
@@ -29,7 +29,7 @@ export default function Personnel() {
   const openCreate = () => { setEditUser(null); setForm(INIT_FORM); setShowModal(true); };
   const openEdit = (u) => {
     setEditUser(u);
-    setForm({ nombre: u.nombre, apellido: u.apellido, telefono: u.telefono || '', username: u.username, password: '', role: u.role });
+    setForm({ nombre: u.nombre, apellido: u.apellido, telefono: u.telefono || '', email: u.email || '', username: u.username, password: '', role: u.role });
     setShowModal(true);
   };
 
@@ -147,9 +147,15 @@ export default function Personnel() {
                     <input className="form-control" required value={form.apellido} onChange={e => setForm(p => ({ ...p, apellido: e.target.value }))} />
                   </div>
                 </div>
-                <div className="form-group">
-                  <label className="form-label">Teléfono / WhatsApp</label>
-                  <input className="form-control" type="tel" value={form.telefono} onChange={e => setForm(p => ({ ...p, telefono: e.target.value }))} placeholder="+54 9 11 ..." />
+                <div className="grid-2">
+                  <div className="form-group">
+                    <label className="form-label">Teléfono / WhatsApp</label>
+                    <input className="form-control" type="tel" value={form.telefono} onChange={e => setForm(p => ({ ...p, telefono: e.target.value }))} placeholder="+54 9 11 ..." />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Email</label>
+                    <input className="form-control" type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} placeholder="correo@ejemplo.com" />
+                  </div>
                 </div>
                 <div className="divider" style={{ margin: '4px 0' }} />
                 <div className="grid-2">
@@ -269,6 +275,7 @@ function UserTable({ users, onEdit, onDelete, onHistory }) {
             <th>Nombre</th>
             <th>Usuario</th>
             <th>Teléfono</th>
+            <th>Email</th>
             <th>Rol</th>
             <th style={{ width: 110 }}>Acciones</th>
           </tr>
@@ -282,6 +289,13 @@ function UserTable({ users, onEdit, onDelete, onHistory }) {
                 {u.telefono ? (
                   <a href={`tel:${u.telefono}`} style={{ display: 'flex', alignItems: 'center', gap: 5, color: 'var(--text-secondary)', fontSize: '0.85rem', textDecoration: 'none' }}>
                     <Phone size={12} /> {u.telefono}
+                  </a>
+                ) : '—'}
+              </td>
+              <td>
+                {u.email ? (
+                  <a href={`mailto:${u.email}`} style={{ display: 'flex', alignItems: 'center', gap: 5, color: 'var(--text-secondary)', fontSize: '0.85rem', textDecoration: 'none' }}>
+                    <Mail size={12} /> {u.email}
                   </a>
                 ) : '—'}
               </td>

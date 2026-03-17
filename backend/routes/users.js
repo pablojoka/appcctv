@@ -6,13 +6,13 @@ const { authMiddleware, adminOnly } = require('../middleware/auth');
 
 // GET all users (admin only)
 router.get('/', authMiddleware, adminOnly, (req, res) => {
-  const users = db.prepare('SELECT id, nombre, apellido, telefono, username, role, created_at FROM users ORDER BY apellido').all();
+  const users = db.prepare('SELECT id, nombre, apellido, telefono, email, username, role, created_at FROM users ORDER BY apellido').all();
   res.json(users);
 });
 
 // POST create user (admin only)
 router.post('/', authMiddleware, adminOnly, (req, res) => {
-  const { nombre, apellido, telefono, username, password, role } = req.body;
+  const { nombre, apellido, telefono, email, username, password, role } = req.body;
   if (!nombre || !apellido || !username || !password)
     return res.status(400).json({ error: 'Campos requeridos: nombre, apellido, username, password' });
 
@@ -21,25 +21,25 @@ router.post('/', authMiddleware, adminOnly, (req, res) => {
 
   const hash = bcrypt.hashSync(password, 10);
   const result = db.prepare(
-    'INSERT INTO users (nombre, apellido, telefono, username, password, role) VALUES (?, ?, ?, ?, ?, ?)'
-  ).run(nombre, apellido, telefono || null, username, hash, role || 'personal');
+    'INSERT INTO users (nombre, apellido, telefono, email, username, password, role) VALUES (?, ?, ?, ?, ?, ?, ?)'
+  ).run(nombre, apellido, telefono || null, email || null, username, hash, role || 'personal');
 
   res.status(201).json({ id: result.lastInsertRowid, nombre, apellido, username, role: role || 'personal' });
 });
 
 // PUT update user (admin only)
 router.put('/:id', authMiddleware, adminOnly, (req, res) => {
-  const { nombre, apellido, telefono, role, password } = req.body;
+  const { nombre, apellido, telefono, email, role, password } = req.body;
   const user = db.prepare('SELECT id FROM users WHERE id = ?').get(req.params.id);
   if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
 
   if (password) {
     const hash = bcrypt.hashSync(password, 10);
-    db.prepare('UPDATE users SET nombre=?, apellido=?, telefono=?, role=?, password=? WHERE id=?')
-      .run(nombre, apellido, telefono || null, role, hash, req.params.id);
+    db.prepare('UPDATE users SET nombre=?, apellido=?, telefono=?, email=?, role=?, password=? WHERE id=?')
+      .run(nombre, apellido, telefono || null, email || null, role, hash, req.params.id);
   } else {
-    db.prepare('UPDATE users SET nombre=?, apellido=?, telefono=?, role=? WHERE id=?')
-      .run(nombre, apellido, telefono || null, role, req.params.id);
+    db.prepare('UPDATE users SET nombre=?, apellido=?, telefono=?, email=?, role=? WHERE id=?')
+      .run(nombre, apellido, telefono || null, email || null, role, req.params.id);
   }
   res.json({ success: true });
 });
