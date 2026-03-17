@@ -28,6 +28,9 @@ try { db.exec('ALTER TABLE users ADD COLUMN email TEXT'); } catch {}
 // User avatar migration
 try { db.exec('ALTER TABLE users ADD COLUMN avatar TEXT'); } catch {}
 
+// Equipment destination on report
+try { db.exec('ALTER TABLE reports ADD COLUMN destino_equipos TEXT'); } catch {}
+
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

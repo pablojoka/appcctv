@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { createReport } from '../services/api';
 import { toast } from 'react-toastify';
-import { Star } from 'lucide-react';
+import { Star, Warehouse, MapPin } from 'lucide-react';
 
 const CALIDAD_OPTS = [
   { value: 'excelente', label: 'Excelente' },
@@ -10,7 +10,31 @@ const CALIDAD_OPTS = [
   { value: 'mala', label: 'Mala' },
 ];
 
-export default function ReportModal({ eventId, eventName, onClose, onSuccess }) {
+export default function ReportModal({ eventId, eventName, event, onClose, onSuccess }) {
+  // Build flat equipment list from event rooms
+  const allEquipment = useMemo(() => {
+    if (!event?.rooms) return [];
+    return event.rooms.flatMap(room =>
+      (room.equipment || []).map(eq => ({
+        id: eq.id,
+        equipment_id: eq.equipment_id,
+        nombre: eq.equipo_nombre,
+        sala: room.nombre,
+        cantidad: eq.cantidad,
+      }))
+    );
+  }, [event]);
+
+  // destinos: { [room_equipment_id]: { destino: 'deposito'|'otro', predio: '' } }
+  const [destinos, setDestinos] = useState(() =>
+    Object.fromEntries(allEquipment.map(eq => [eq.id, { destino: 'deposito', predio: '' }]))
+  );
+
+  const setDestino = (id, destino) =>
+    setDestinos(p => ({ ...p, [id]: { ...p[id], destino } }));
+  const setPredio = (id, predio) =>
+    setDestinos(p => ({ ...p, [id]: { ...p[id], predio } }));
+
   const [form, setForm] = useState({
     salio_segun_plan: true,
     problemas_tecnicos: false,
@@ -26,9 +50,23 @@ export default function ReportModal({ eventId, eventName, onClose, onSuccess }) 
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    // Validate "otro predio" fields
+    const sinPredio = allEquipment.filter(eq => destinos[eq.id]?.destino === 'otro' && !destinos[eq.id]?.predio?.trim());
+    if (sinPredio.length > 0) {
+      toast.error(`Completá el destino para: ${sinPredio.map(e => e.nombre).join(', ')}`);
+      return;
+    }
     setSaving(true);
+    const destino_equipos = allEquipment.map(eq => ({
+      equipment_id: eq.equipment_id,
+      nombre: eq.nombre,
+      sala: eq.sala,
+      cantidad: eq.cantidad,
+      destino: destinos[eq.id]?.destino || 'deposito',
+      predio: destinos[eq.id]?.destino === 'otro' ? destinos[eq.id]?.predio : null,
+    }));
     try {
-      await createReport({ event_id: parseInt(eventId), ...form });
+      await createReport({ event_id: parseInt(eventId), ...form, destino_equipos });
       toast.success('Reporte creado. Evento cerrado.');
       onSuccess();
     } catch (err) {
@@ -118,6 +156,65 @@ export default function ReportModal({ eventId, eventName, onClose, onSuccess }) 
               <label className="form-label">Recomendaciones para próximos eventos</label>
               <textarea className="form-control" value={form.recomendaciones} onChange={e => setForm(p => ({ ...p, recomendaciones: e.target.value }))} placeholder="Sugerencias, mejoras, notas importantes..." />
             </div>
+
+            {allEquipment.length > 0 && (
+              <div style={{ marginTop: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                  <Warehouse size={15} color="var(--accent)" />
+                  <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.95rem' }}>Destino de equipos</span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>— ¿A dónde va cada equipo?</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {allEquipment.map(eq => {
+                    const d = destinos[eq.id] || { destino: 'deposito', predio: '' };
+                    return (
+                      <div key={eq.id} style={{ background: 'var(--bg-elevated)', borderRadius: 8, padding: '10px 12px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{eq.nombre}</div>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{eq.sala} · x{eq.cantidad}</div>
+                          </div>
+                          <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                            {[
+                              { value: 'deposito', label: 'Depósito', icon: Warehouse },
+                              { value: 'otro', label: 'Otro predio', icon: MapPin },
+                            ].map(opt => {
+                              const Icon = opt.icon;
+                              const active = d.destino === opt.value;
+                              return (
+                                <button
+                                  key={opt.value} type="button"
+                                  onClick={() => setDestino(eq.id, opt.value)}
+                                  style={{
+                                    display: 'flex', alignItems: 'center', gap: 5,
+                                    padding: '5px 12px', borderRadius: 6, border: '1px solid',
+                                    cursor: 'pointer', fontWeight: 600, fontSize: '0.78rem',
+                                    borderColor: active ? (opt.value === 'deposito' ? 'var(--green)' : 'var(--yellow)') : 'var(--border)',
+                                    background: active ? (opt.value === 'deposito' ? 'var(--green-dim)' : 'var(--yellow-dim)') : 'var(--bg-card)',
+                                    color: active ? (opt.value === 'deposito' ? 'var(--green)' : 'var(--yellow)') : 'var(--text-muted)',
+                                  }}
+                                >
+                                  <Icon size={12} /> {opt.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                        {d.destino === 'otro' && (
+                          <input
+                            className="form-control"
+                            style={{ marginTop: 8, fontSize: '0.82rem' }}
+                            placeholder="Nombre del predio / evento destino..."
+                            value={d.predio}
+                            onChange={e => setPredio(eq.id, e.target.value)}
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             <div className="form-group">
               <label className="form-label">Nota general del evento (1–5)</label>

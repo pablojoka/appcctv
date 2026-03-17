@@ -1238,7 +1238,7 @@ export default function EventDetail() {
       )}
 
       {showReport && (
-        <ReportModal eventId={id} eventName={event.nombre} onClose={() => setShowReport(false)} onSuccess={() => { setShowReport(false); load(); }} />
+        <ReportModal eventId={id} eventName={event.nombre} event={event} onClose={() => setShowReport(false)} onSuccess={() => { setShowReport(false); load(); }} />
       )}
 
       {/* Modal: Citación operador */}

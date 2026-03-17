@@ -42,7 +42,8 @@ router.post('/', authMiddleware, (req, res) => {
     equipo_completo,
     equipos_con_fallas,
     recomendaciones,
-    nota_general
+    nota_general,
+    destino_equipos
   } = req.body;
 
   if (!event_id) return res.status(400).json({ error: 'event_id requerido' });
@@ -55,12 +56,13 @@ router.post('/', authMiddleware, (req, res) => {
 
   const result = db.prepare(`
     INSERT INTO reports (event_id, encargado_id, salio_segun_plan, problemas_tecnicos, descripcion_problemas,
-      calidad_streaming, personal_suficiente, equipo_completo, equipos_con_fallas, recomendaciones, nota_general)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      calidad_streaming, personal_suficiente, equipo_completo, equipos_con_fallas, recomendaciones, nota_general, destino_equipos)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(event_id, req.user.id, salio_segun_plan ? 1 : 0, problemas_tecnicos ? 1 : 0,
     descripcion_problemas || null, calidad_streaming || null,
     personal_suficiente ? 1 : 0, equipo_completo ? 1 : 0,
-    equipos_con_fallas || null, recomendaciones || null, nota_general || null);
+    equipos_con_fallas || null, recomendaciones || null, nota_general || null,
+    destino_equipos ? JSON.stringify(destino_equipos) : null);
 
   // Close the event
   db.prepare("UPDATE events SET estado = 'finalizado' WHERE id = ?").run(event_id);
