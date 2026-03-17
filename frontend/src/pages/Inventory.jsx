@@ -126,6 +126,7 @@ export default function Inventory() {
               <thead>
                 <tr>
                   <th>Nombre</th>
+                  <th>Categoría</th>
                   <th>Marca / Modelo</th>
                   <th>N° Serie</th>
                   <th>Estado</th>
@@ -140,6 +141,11 @@ export default function Inventory() {
                       <td>
                         <div style={{ fontWeight: 600 }}>{eq.nombre}</div>
                         {eq.descripcion && <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{eq.descripcion}</div>}
+                      </td>
+                      <td>
+                        <span className="badge" style={{ background: 'var(--accent-dim)', color: 'var(--accent)', fontSize: '0.7rem' }}>
+                          {cat.nombre}
+                        </span>
                       </td>
                       <td style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
                         {[eq.marca, eq.modelo].filter(Boolean).join(' · ') || '—'}
