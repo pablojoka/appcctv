@@ -35,66 +35,71 @@ async function generateOrdenServicio(event) {
   } catch {}
 
   const drawHeader = (pageNum) => {
-    // Top bar
-    doc.setFillColor(15, 15, 15);
-    doc.rect(0, 0, pageW, 28, 'F');
+    // Top border line
+    doc.setFillColor(224, 48, 48);
+    doc.rect(0, 0, pageW, 2, 'F');
 
     // Logo
     if (logoData) {
-      doc.addImage(logoData, 'JPEG', margin, 4, 20, 20);
+      doc.addImage(logoData, 'JPEG', margin, 6, 18, 18);
     }
 
     // Company name
+    const textX = logoData ? margin + 22 : margin;
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(13);
-    doc.setTextColor(255, 255, 255);
-    doc.text('CCTV/', logoData ? margin + 24 : margin, 13);
+    doc.setFontSize(12);
+    doc.setTextColor(20, 20, 20);
+    doc.text('CCTV/', textX, 14);
     const cctvW = doc.getTextWidth('CCTV/');
     doc.setTextColor(224, 48, 48);
-    doc.text('VMIX', logoData ? margin + 24 + cctvW : margin + cctvW, 13);
+    doc.text('VMIX', textX + cctvW, 14);
 
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.setTextColor(160, 160, 160);
-    doc.text('Sistema de Gestión de Eventos', logoData ? margin + 24 : margin, 20);
+    doc.setFontSize(7.5);
+    doc.setTextColor(120, 120, 120);
+    doc.text('Sistema de Gestión de Eventos', textX, 20);
 
     // Title block (right)
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(16);
-    doc.setTextColor(255, 255, 255);
-    doc.text('ORDEN DE SERVICIO', pageW - margin, 12, { align: 'right' });
+    doc.setFontSize(15);
+    doc.setTextColor(20, 20, 20);
+    doc.text('ORDEN DE SERVICIO', pageW - margin, 13, { align: 'right' });
     doc.setFontSize(9);
     doc.setTextColor(224, 48, 48);
     doc.text(`N° ${event.numero_orden}`, pageW - margin, 20, { align: 'right' });
 
-    // Page number
     if (pageNum > 1) {
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(7);
-      doc.setTextColor(180, 180, 180);
+      doc.setTextColor(150, 150, 150);
       doc.text(`Página ${pageNum}`, pageW - margin, 26, { align: 'right' });
     }
+
+    // Divider
+    doc.setDrawColor(220, 220, 220);
+    doc.setLineWidth(0.4);
+    doc.line(margin, 27, pageW - margin, 27);
   };
 
   const drawFooter = () => {
     const y = pageH - 10;
-    doc.setDrawColor(50, 50, 50);
+    doc.setDrawColor(200, 200, 200);
     doc.setLineWidth(0.3);
     doc.line(margin, y - 4, pageW - margin, y - 4);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7);
-    doc.setTextColor(130, 130, 130);
+    doc.setTextColor(150, 150, 150);
     doc.text(`Generado el ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, margin, y);
     doc.text('Congress CCTV/VMIX', pageW - margin, y, { align: 'right' });
   };
 
   // --- PAGE 1 ---
   drawHeader(1);
-  let y = 36;
+  let y = 33;
 
   // Event info block
-  doc.setFillColor(22, 22, 22);
-  doc.setDrawColor(50, 50, 50);
+  doc.setFillColor(248, 248, 248);
+  doc.setDrawColor(220, 220, 220);
   doc.setLineWidth(0.3);
   doc.roundedRect(margin, y, contentW, 38, 2, 2, 'FD');
 
@@ -111,19 +116,19 @@ async function generateOrdenServicio(event) {
 
   const bx = margin + 8;
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(14);
-  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(13);
+  doc.setTextColor(20, 20, 20);
   doc.text(event.nombre, bx, y + 10);
 
   // Status badge
   const statusLabel = STATUS_LABELS_PDF[event.estado] || event.estado;
-  const statusColor = event.estado === 'confirmado' ? [48, 160, 80] : event.estado === 'finalizado' ? [100, 100, 100] : [224, 200, 48];
+  const statusColor = event.estado === 'confirmado' ? [48, 160, 80] : event.estado === 'finalizado' ? [130, 130, 130] : [200, 160, 20];
   doc.setFillColor(...statusColor);
   const sw = doc.getTextWidth(statusLabel) + 6;
   doc.roundedRect(pageW - margin - sw - 4, y + 4, sw + 4, 7, 1, 1, 'F');
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7);
-  doc.setTextColor(0, 0, 0);
+  doc.setTextColor(255, 255, 255);
   doc.text(statusLabel, pageW - margin - sw / 2 - 2, y + 9, { align: 'center' });
 
   // Info fields
@@ -143,15 +148,15 @@ async function generateOrdenServicio(event) {
     doc.text(col.label, cx, infoY);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
-    doc.setTextColor(220, 220, 220);
+    doc.setTextColor(30, 30, 30);
     doc.text(col.value, cx, infoY + 6);
   });
 
   if (event.ubicacion) {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
-    doc.setTextColor(160, 160, 160);
-    doc.text(`📍 ${event.ubicacion}`, bx, y + 34);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Ubicacion: ${event.ubicacion}`, bx, y + 34);
   }
 
   y += 46;
@@ -173,28 +178,28 @@ async function generateOrdenServicio(event) {
       grouped[cat].push(eq);
     });
 
-    // Check space — section header + at least one row
+    // Check space
     if (y > pageH - 50) {
       drawFooter();
       doc.addPage();
       pageNum++;
       drawHeader(pageNum);
-      y = 36;
+      y = 33;
     }
 
     // Room header
-    doc.setFillColor(35, 35, 35);
+    doc.setFillColor(235, 235, 235);
     doc.rect(margin, y, contentW, 9, 'F');
     doc.setFillColor(224, 48, 48);
     doc.rect(margin, y, 3, 9, 'F');
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
-    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(9.5);
+    doc.setTextColor(20, 20, 20);
     doc.text(`SALA: ${room.nombre.toUpperCase()}`, margin + 7, y + 6.5);
     if (room.descripcion) {
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8);
-      doc.setTextColor(160, 160, 160);
+      doc.setTextColor(100, 100, 100);
       doc.text(room.descripcion, pageW - margin, y + 6.5, { align: 'right' });
     }
     y += 12;
@@ -206,13 +211,13 @@ async function generateOrdenServicio(event) {
         doc.addPage();
         pageNum++;
         drawHeader(pageNum);
-        y = 36;
+        y = 33;
       }
 
       // Category label
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(8);
-      doc.setTextColor(180, 180, 180);
+      doc.setFontSize(7.5);
+      doc.setTextColor(150, 150, 150);
       doc.text(cat.toUpperCase(), margin + 2, y + 4);
       y += 7;
 
@@ -228,24 +233,24 @@ async function generateOrdenServicio(event) {
         styles: {
           fontSize: 9,
           cellPadding: { top: 3, bottom: 3, left: 4, right: 4 },
-          textColor: [210, 210, 210],
-          fillColor: [18, 18, 18],
-          lineColor: [45, 45, 45],
+          textColor: [30, 30, 30],
+          fillColor: [255, 255, 255],
+          lineColor: [210, 210, 210],
           lineWidth: 0.2,
         },
         headStyles: {
-          fillColor: [30, 30, 30],
-          textColor: [140, 140, 140],
+          fillColor: [245, 245, 245],
+          textColor: [80, 80, 80],
           fontStyle: 'bold',
           fontSize: 7.5,
           halign: 'left',
         },
         columnStyles: {
           0: { cellWidth: 'auto' },
-          1: { cellWidth: 65, textColor: [150, 150, 150] },
+          1: { cellWidth: 65, textColor: [100, 100, 100] },
           2: { cellWidth: 18, halign: 'center', fontStyle: 'bold', textColor: [224, 48, 48] },
         },
-        alternateRowStyles: { fillColor: [22, 22, 22] },
+        alternateRowStyles: { fillColor: [250, 250, 250] },
         theme: 'grid',
         didDrawPage: () => {},
       });
@@ -263,18 +268,18 @@ async function generateOrdenServicio(event) {
       doc.addPage();
       pageNum++;
       drawHeader(pageNum);
-      y = 36;
+      y = 33;
     }
-    doc.setFillColor(22, 22, 22);
-    doc.setDrawColor(50, 50, 50);
+    doc.setFillColor(250, 250, 250);
+    doc.setDrawColor(210, 210, 210);
     doc.roundedRect(margin, y, contentW, 22, 2, 2, 'FD');
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8);
-    doc.setTextColor(130, 130, 130);
+    doc.setTextColor(100, 100, 100);
     doc.text('NOTAS', margin + 4, y + 7);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
-    doc.setTextColor(200, 200, 200);
+    doc.setTextColor(40, 40, 40);
     const lines = doc.splitTextToSize(event.notas, contentW - 8);
     doc.text(lines.slice(0, 2), margin + 4, y + 14);
   }
