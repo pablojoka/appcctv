@@ -1,0 +1,157 @@
+import { useState } from 'react';
+import { createReport } from '../services/api';
+import { toast } from 'react-toastify';
+import { Star } from 'lucide-react';
+
+const CALIDAD_OPTS = [
+  { value: 'excelente', label: 'Excelente' },
+  { value: 'buena', label: 'Buena' },
+  { value: 'regular', label: 'Regular' },
+  { value: 'mala', label: 'Mala' },
+];
+
+export default function ReportModal({ eventId, eventName, onClose, onSuccess }) {
+  const [form, setForm] = useState({
+    salio_segun_plan: true,
+    problemas_tecnicos: false,
+    descripcion_problemas: '',
+    calidad_streaming: 'buena',
+    personal_suficiente: true,
+    equipo_completo: true,
+    equipos_con_fallas: '',
+    recomendaciones: '',
+    nota_general: 5,
+  });
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await createReport({ event_id: parseInt(eventId), ...form });
+      toast.success('Reporte creado. Evento cerrado.');
+      onSuccess();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Error al crear reporte');
+    } finally { setSaving(false); }
+  };
+
+  const BoolField = ({ label, field }) => (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+      <span style={{ fontSize: '0.9rem' }}>{label}</span>
+      <div style={{ display: 'flex', gap: 8 }}>
+        {[true, false].map(val => (
+          <button
+            key={String(val)}
+            type="button"
+            onClick={() => setForm(p => ({ ...p, [field]: val }))}
+            style={{
+              padding: '5px 14px', borderRadius: 6, border: '1px solid',
+              cursor: 'pointer', fontWeight: 600, fontSize: '0.8rem',
+              borderColor: form[field] === val ? (val ? 'var(--green)' : 'var(--red)') : 'var(--border)',
+              background: form[field] === val ? (val ? 'var(--green-dim)' : 'var(--red-dim)') : 'var(--bg-elevated)',
+              color: form[field] === val ? (val ? 'var(--green)' : 'var(--red)') : 'var(--text-muted)',
+            }}
+          >
+            {val ? 'Sí' : 'No'}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal modal-lg">
+        <div className="modal-header">
+          <div>
+            <h2>Cerrar evento y generar reporte</h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginTop: 2 }}>{eventName}</p>
+          </div>
+          <button className="btn-icon" onClick={onClose}>✕</button>
+        </div>
+        <form onSubmit={handleSubmit}>
+          <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+
+            <BoolField label="¿El evento salió según lo planeado?" field="salio_segun_plan" />
+            <BoolField label="¿Hubo problemas técnicos?" field="problemas_tecnicos" />
+
+            {form.problemas_tecnicos && (
+              <div className="form-group" style={{ marginTop: 8 }}>
+                <label className="form-label">Describí los problemas técnicos</label>
+                <textarea className="form-control" value={form.descripcion_problemas} onChange={e => setForm(p => ({ ...p, descripcion_problemas: e.target.value }))} placeholder="Detallá qué problemas ocurrieron..." />
+              </div>
+            )}
+
+            <div style={{ padding: '10px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.9rem' }}>Calidad del streaming / grabación</span>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {CALIDAD_OPTS.map(opt => (
+                    <button
+                      key={opt.value} type="button"
+                      onClick={() => setForm(p => ({ ...p, calidad_streaming: opt.value }))}
+                      style={{
+                        padding: '5px 12px', borderRadius: 6, border: '1px solid',
+                        cursor: 'pointer', fontWeight: 600, fontSize: '0.78rem',
+                        borderColor: form.calidad_streaming === opt.value ? 'var(--accent)' : 'var(--border)',
+                        background: form.calidad_streaming === opt.value ? 'var(--accent-dim)' : 'var(--bg-elevated)',
+                        color: form.calidad_streaming === opt.value ? 'var(--accent)' : 'var(--text-muted)',
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <BoolField label="¿El personal fue suficiente?" field="personal_suficiente" />
+            <BoolField label="¿El equipo estaba completo?" field="equipo_completo" />
+
+            <div className="form-group" style={{ marginTop: 8 }}>
+              <label className="form-label">Equipos con fallas (si hubo)</label>
+              <input className="form-control" value={form.equipos_con_fallas} onChange={e => setForm(p => ({ ...p, equipos_con_fallas: e.target.value }))} placeholder="Ej: Cámara Sony A7S, Switch HDMI..." />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Recomendaciones para próximos eventos</label>
+              <textarea className="form-control" value={form.recomendaciones} onChange={e => setForm(p => ({ ...p, recomendaciones: e.target.value }))} placeholder="Sugerencias, mejoras, notas importantes..." />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Nota general del evento (1–5)</label>
+              <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                {[1, 2, 3, 4, 5].map(n => (
+                  <button
+                    key={n} type="button"
+                    onClick={() => setForm(p => ({ ...p, nota_general: n }))}
+                    style={{
+                      width: 40, height: 40, borderRadius: 8,
+                      border: '1px solid', cursor: 'pointer',
+                      borderColor: form.nota_general >= n ? 'var(--yellow)' : 'var(--border)',
+                      background: form.nota_general >= n ? 'var(--yellow-dim)' : 'var(--bg-elevated)',
+                      color: form.nota_general >= n ? 'var(--yellow)' : 'var(--text-muted)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}
+                  >
+                    <Star size={16} fill={form.nota_general >= n ? 'currentColor' : 'none'} />
+                  </button>
+                ))}
+                <span style={{ display: 'flex', alignItems: 'center', color: 'var(--text-secondary)', fontSize: '0.85rem', marginLeft: 6 }}>
+                  {form.nota_general}/5
+                </span>
+              </div>
+            </div>
+          </div>
+          <div className="modal-footer">
+            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancelar</button>
+            <button type="submit" className="btn btn-primary" disabled={saving}>
+              {saving ? <span className="spinner" style={{ width: 16, height: 16 }} /> : 'Cerrar evento y guardar reporte'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
