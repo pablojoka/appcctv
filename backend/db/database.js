@@ -17,6 +17,11 @@ console.log('✅ Connected to SQLite database');
 try { db.exec('ALTER TABLE events ADD COLUMN hora_ingreso TEXT'); } catch {}
 try { db.exec('ALTER TABLE events ADD COLUMN color TEXT'); } catch {}
 
+// Equipment checkout migrations
+try { db.exec("ALTER TABLE room_equipment ADD COLUMN checkout_status TEXT DEFAULT 'pendiente'"); } catch {}
+try { db.exec('ALTER TABLE room_equipment ADD COLUMN fecha_entrega TEXT'); } catch {}
+try { db.exec('ALTER TABLE room_equipment ADD COLUMN fecha_devolucion TEXT'); } catch {}
+
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -105,6 +110,16 @@ db.exec(`
     categoria TEXT,
     filename TEXT NOT NULL,
     original_name TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS event_photos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_id INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+    filename TEXT NOT NULL,
+    original_name TEXT NOT NULL,
+    caption TEXT,
+    uploaded_by INTEGER REFERENCES users(id),
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 `);

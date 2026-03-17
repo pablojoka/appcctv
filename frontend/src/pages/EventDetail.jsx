@@ -1,11 +1,19 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getEvent, updateEvent, createRoom, deleteRoom, addRoomEquipment, removeRoomEquipment, addRoomStaff, removeRoomStaff, getInventory, getUsers } from '../services/api';
+import {
+  getEvent, updateEvent, createRoom, deleteRoom,
+  addRoomEquipment, removeRoomEquipment, addRoomStaff, removeRoomStaff,
+  getInventory, getUsers, updateEquipmentCheckout,
+  getEventPhotos, uploadEventPhoto, deleteEventPhoto, getEventPhotoUrl
+} from '../services/api';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'react-toastify';
 import { useAuth } from '../context/AuthContext';
-import { ArrowLeft, Plus, Trash2, Edit2, Users, Package, MapPin, Hash, Calendar, FileText, MessageSquare, Copy, Check, Download } from 'lucide-react';
+import {
+  ArrowLeft, Plus, Trash2, Edit2, Users, Package, MapPin, Hash, Calendar, FileText,
+  MessageSquare, Copy, Check, Download, Camera, Upload, X, Truck, RotateCcw
+} from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -22,7 +30,6 @@ async function generateOrdenServicio(event) {
   const contentW = pageW - margin * 2;
   const fmt = (d) => { try { return format(parseISO(d), 'dd/MM/yyyy'); } catch { return d || '—'; } };
 
-  // Load logo
   let logoData = null;
   try {
     const res = await fetch('/logo.jpg');
@@ -35,75 +42,42 @@ async function generateOrdenServicio(event) {
   } catch {}
 
   const drawHeader = (pageNum) => {
-    // Top border line
     doc.setFillColor(224, 48, 48);
     doc.rect(0, 0, pageW, 2, 'F');
-
-    // Logo
-    if (logoData) {
-      doc.addImage(logoData, 'JPEG', margin, 6, 18, 18);
-    }
-
-    // Company name
+    if (logoData) doc.addImage(logoData, 'JPEG', margin, 6, 18, 18);
     const textX = logoData ? margin + 22 : margin;
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12);
-    doc.setTextColor(20, 20, 20);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor(20, 20, 20);
     doc.text('CCTV/', textX, 14);
     const cctvW = doc.getTextWidth('CCTV/');
-    doc.setTextColor(224, 48, 48);
-    doc.text('VMIX', textX + cctvW, 14);
-
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7.5);
-    doc.setTextColor(120, 120, 120);
+    doc.setTextColor(224, 48, 48); doc.text('VMIX', textX + cctvW, 14);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(120, 120, 120);
     doc.text('Sistema de Gestión de Eventos', textX, 20);
-
-    // Title block (right)
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(15);
-    doc.setTextColor(20, 20, 20);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(15); doc.setTextColor(20, 20, 20);
     doc.text('ORDEN DE SERVICIO', pageW - margin, 13, { align: 'right' });
-    doc.setFontSize(9);
-    doc.setTextColor(224, 48, 48);
+    doc.setFontSize(9); doc.setTextColor(224, 48, 48);
     doc.text(`N° ${event.numero_orden}`, pageW - margin, 20, { align: 'right' });
-
     if (pageNum > 1) {
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7);
-      doc.setTextColor(150, 150, 150);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(150, 150, 150);
       doc.text(`Página ${pageNum}`, pageW - margin, 26, { align: 'right' });
     }
-
-    // Divider
-    doc.setDrawColor(220, 220, 220);
-    doc.setLineWidth(0.4);
+    doc.setDrawColor(220, 220, 220); doc.setLineWidth(0.4);
     doc.line(margin, 27, pageW - margin, 27);
   };
 
   const drawFooter = () => {
     const y = pageH - 10;
-    doc.setDrawColor(200, 200, 200);
-    doc.setLineWidth(0.3);
+    doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.3);
     doc.line(margin, y - 4, pageW - margin, y - 4);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7);
-    doc.setTextColor(150, 150, 150);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(150, 150, 150);
     doc.text(`Generado el ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, margin, y);
     doc.text('Congress CCTV/VMIX', pageW - margin, y, { align: 'right' });
   };
 
-  // --- PAGE 1 ---
   drawHeader(1);
   let y = 33;
 
-  // Event info block
-  doc.setFillColor(248, 248, 248);
-  doc.setDrawColor(220, 220, 220);
-  doc.setLineWidth(0.3);
+  doc.setFillColor(248, 248, 248); doc.setDrawColor(220, 220, 220); doc.setLineWidth(0.3);
   doc.roundedRect(margin, y, contentW, 38, 2, 2, 'FD');
-
-  // Event color stripe
   if (event.color) {
     const hex = event.color.replace('#', '');
     const r = parseInt(hex.substring(0, 2), 16);
@@ -115,23 +89,17 @@ async function generateOrdenServicio(event) {
   }
 
   const bx = margin + 8;
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(13);
-  doc.setTextColor(20, 20, 20);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(20, 20, 20);
   doc.text(event.nombre, bx, y + 10);
 
-  // Status badge
   const statusLabel = STATUS_LABELS_PDF[event.estado] || event.estado;
   const statusColor = event.estado === 'confirmado' ? [48, 160, 80] : event.estado === 'finalizado' ? [130, 130, 130] : [200, 160, 20];
   doc.setFillColor(...statusColor);
   const sw = doc.getTextWidth(statusLabel) + 6;
   doc.roundedRect(pageW - margin - sw - 4, y + 4, sw + 4, 7, 1, 1, 'F');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7);
-  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(255, 255, 255);
   doc.text(statusLabel, pageW - margin - sw / 2 - 2, y + 9, { align: 'center' });
 
-  // Info fields
   const infoY = y + 18;
   const cols = [
     { label: 'INICIO', value: fmt(event.fecha_inicio) },
@@ -142,26 +110,17 @@ async function generateOrdenServicio(event) {
   const colW = contentW / cols.length;
   cols.forEach((col, i) => {
     const cx = bx + i * colW;
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7);
-    doc.setTextColor(130, 130, 130);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(130, 130, 130);
     doc.text(col.label, cx, infoY);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.setTextColor(30, 30, 30);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(30, 30, 30);
     doc.text(col.value, cx, infoY + 6);
   });
-
   if (event.ubicacion) {
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.setTextColor(100, 100, 100);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(100, 100, 100);
     doc.text(`Ubicacion: ${event.ubicacion}`, bx, y + 34);
   }
-
   y += 46;
 
-  // Rooms
   const rooms = event.rooms || [];
   let pageNum = 1;
 
@@ -170,7 +129,6 @@ async function generateOrdenServicio(event) {
     const equipment = room.equipment || [];
     if (equipment.length === 0) continue;
 
-    // Group by category
     const grouped = {};
     equipment.forEach(eq => {
       const cat = eq.categoria || 'Sin categoría';
@@ -178,162 +136,74 @@ async function generateOrdenServicio(event) {
       grouped[cat].push(eq);
     });
 
-    // Check space
     if (y > pageH - 50) {
-      drawFooter();
-      doc.addPage();
-      pageNum++;
-      drawHeader(pageNum);
-      y = 33;
+      drawFooter(); doc.addPage(); pageNum++; drawHeader(pageNum); y = 33;
     }
 
-    // Room header
-    doc.setFillColor(235, 235, 235);
-    doc.rect(margin, y, contentW, 9, 'F');
-    doc.setFillColor(224, 48, 48);
-    doc.rect(margin, y, 3, 9, 'F');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9.5);
-    doc.setTextColor(20, 20, 20);
+    doc.setFillColor(235, 235, 235); doc.rect(margin, y, contentW, 9, 'F');
+    doc.setFillColor(224, 48, 48); doc.rect(margin, y, 3, 9, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); doc.setTextColor(20, 20, 20);
     doc.text(`SALA: ${room.nombre.toUpperCase()}`, margin + 7, y + 6.5);
     if (room.descripcion) {
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8);
-      doc.setTextColor(100, 100, 100);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(100, 100, 100);
       doc.text(room.descripcion, pageW - margin, y + 6.5, { align: 'right' });
     }
     y += 12;
 
-    // Tables per category
     for (const [cat, items] of Object.entries(grouped)) {
       if (y > pageH - 40) {
-        drawFooter();
-        doc.addPage();
-        pageNum++;
-        drawHeader(pageNum);
-        y = 33;
+        drawFooter(); doc.addPage(); pageNum++; drawHeader(pageNum); y = 33;
       }
-
-      // Category label
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(7.5);
-      doc.setTextColor(150, 150, 150);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(150, 150, 150);
       doc.text(cat.toUpperCase(), margin + 2, y + 4);
       y += 7;
 
       autoTable(doc, {
-        startY: y,
-        margin: { left: margin, right: margin },
+        startY: y, margin: { left: margin, right: margin },
         head: [['Equipo', 'Marca / Modelo', 'Cant.']],
-        body: items.map(eq => [
-          eq.equipo_nombre,
-          [eq.marca, eq.modelo].filter(Boolean).join(' ') || '—',
-          `×${eq.cantidad}`,
-        ]),
-        styles: {
-          fontSize: 9,
-          cellPadding: { top: 3, bottom: 3, left: 4, right: 4 },
-          textColor: [30, 30, 30],
-          fillColor: [255, 255, 255],
-          lineColor: [210, 210, 210],
-          lineWidth: 0.2,
-        },
-        headStyles: {
-          fillColor: [245, 245, 245],
-          textColor: [80, 80, 80],
-          fontStyle: 'bold',
-          fontSize: 7.5,
-          halign: 'left',
-        },
-        columnStyles: {
-          0: { cellWidth: 'auto' },
-          1: { cellWidth: 65, textColor: [100, 100, 100] },
-          2: { cellWidth: 18, halign: 'center', fontStyle: 'bold', textColor: [224, 48, 48] },
-        },
+        body: items.map(eq => [eq.equipo_nombre, [eq.marca, eq.modelo].filter(Boolean).join(' ') || '—', `×${eq.cantidad}`]),
+        styles: { fontSize: 9, cellPadding: { top: 3, bottom: 3, left: 4, right: 4 }, textColor: [30, 30, 30], fillColor: [255, 255, 255], lineColor: [210, 210, 210], lineWidth: 0.2 },
+        headStyles: { fillColor: [245, 245, 245], textColor: [80, 80, 80], fontStyle: 'bold', fontSize: 7.5, halign: 'left' },
+        columnStyles: { 0: { cellWidth: 'auto' }, 1: { cellWidth: 65, textColor: [100, 100, 100] }, 2: { cellWidth: 18, halign: 'center', fontStyle: 'bold', textColor: [224, 48, 48] } },
         alternateRowStyles: { fillColor: [250, 250, 250] },
-        theme: 'grid',
-        didDrawPage: () => {},
+        theme: 'grid', didDrawPage: () => {},
       });
-
       y = doc.lastAutoTable.finalY + 6;
     }
 
-    // Staff table
     const staff = room.staff || [];
     if (staff.length > 0) {
       if (y > pageH - 40) {
-        drawFooter();
-        doc.addPage();
-        pageNum++;
-        drawHeader(pageNum);
-        y = 33;
+        drawFooter(); doc.addPage(); pageNum++; drawHeader(pageNum); y = 33;
       }
-
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(7.5);
-      doc.setTextColor(150, 150, 150);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(150, 150, 150);
       doc.text('PERSONAL ASIGNADO', margin + 2, y + 4);
       y += 7;
 
       autoTable(doc, {
-        startY: y,
-        margin: { left: margin, right: margin },
+        startY: y, margin: { left: margin, right: margin },
         head: [['Nombre', 'Puesto', 'Teléfono']],
-        body: staff.map(st => [
-          `${st.apellido || ''} ${st.nombre}`.trim(),
-          st.puesto,
-          st.telefono || '—',
-        ]),
-        styles: {
-          fontSize: 9,
-          cellPadding: { top: 3, bottom: 3, left: 4, right: 4 },
-          textColor: [30, 30, 30],
-          fillColor: [255, 255, 255],
-          lineColor: [210, 210, 210],
-          lineWidth: 0.2,
-        },
-        headStyles: {
-          fillColor: [245, 245, 245],
-          textColor: [80, 80, 80],
-          fontStyle: 'bold',
-          fontSize: 7.5,
-          halign: 'left',
-        },
-        columnStyles: {
-          0: { cellWidth: 'auto', fontStyle: 'bold' },
-          1: { cellWidth: 60, textColor: [224, 48, 48], fontStyle: 'bold' },
-          2: { cellWidth: 40, textColor: [100, 100, 100] },
-        },
+        body: staff.map(st => [`${st.apellido || ''} ${st.nombre}`.trim(), st.puesto, st.telefono || '—']),
+        styles: { fontSize: 9, cellPadding: { top: 3, bottom: 3, left: 4, right: 4 }, textColor: [30, 30, 30], fillColor: [255, 255, 255], lineColor: [210, 210, 210], lineWidth: 0.2 },
+        headStyles: { fillColor: [245, 245, 245], textColor: [80, 80, 80], fontStyle: 'bold', fontSize: 7.5, halign: 'left' },
+        columnStyles: { 0: { cellWidth: 'auto', fontStyle: 'bold' }, 1: { cellWidth: 60, textColor: [224, 48, 48], fontStyle: 'bold' }, 2: { cellWidth: 40, textColor: [100, 100, 100] } },
         alternateRowStyles: { fillColor: [250, 250, 250] },
-        theme: 'grid',
-        didDrawPage: () => {},
+        theme: 'grid', didDrawPage: () => {},
       });
-
       y = doc.lastAutoTable.finalY + 6;
     }
-
     y += 4;
   }
 
-  // Notes
   if (event.notas) {
     if (y > pageH - 40) {
-      drawFooter();
-      doc.addPage();
-      pageNum++;
-      drawHeader(pageNum);
-      y = 33;
+      drawFooter(); doc.addPage(); pageNum++; drawHeader(pageNum); y = 33;
     }
-    doc.setFillColor(250, 250, 250);
-    doc.setDrawColor(210, 210, 210);
+    doc.setFillColor(250, 250, 250); doc.setDrawColor(210, 210, 210);
     doc.roundedRect(margin, y, contentW, 22, 2, 2, 'FD');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8);
-    doc.setTextColor(100, 100, 100);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(100, 100, 100);
     doc.text('NOTAS', margin + 4, y + 7);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    doc.setTextColor(40, 40, 40);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(40, 40, 40);
     const lines = doc.splitTextToSize(event.notas, contentW - 8);
     doc.text(lines.slice(0, 2), margin + 4, y + 14);
   }
@@ -346,10 +216,20 @@ const STATUS_OPTS = ['a_confirmar', 'confirmado', 'finalizado'];
 const STATUS_LABELS = { a_confirmar: 'A confirmar', confirmado: 'Confirmado', finalizado: 'Finalizado' };
 const STATUS_CLS = { a_confirmar: 'badge-pending', confirmado: 'badge-active', finalizado: 'badge-closed' };
 
+// Checkout status config
+const CHECKOUT_OPTS = ['pendiente', 'entregado', 'devuelto'];
+const CHECKOUT_LABELS = { pendiente: 'Pendiente', entregado: 'Entregado', devuelto: 'Devuelto' };
+const CHECKOUT_COLORS = {
+  pendiente: { bg: 'rgba(224,192,30,0.18)', color: '#c0a020', border: 'rgba(224,192,30,0.4)' },
+  entregado: { bg: 'rgba(48,128,224,0.18)', color: '#3080e0', border: 'rgba(48,128,224,0.4)' },
+  devuelto:  { bg: 'rgba(48,160,80,0.18)',  color: '#30a050', border: 'rgba(48,160,80,0.4)' },
+};
+const CHECKOUT_ICONS = { pendiente: null, entregado: Truck, devuelto: RotateCcw };
+
 export default function EventDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
   const [event, setEvent] = useState(null);
   const [inventory, setInventory] = useState([]);
   const [users, setUsers] = useState([]);
@@ -360,14 +240,34 @@ export default function EventDetail() {
   const [roomName, setRoomName] = useState('');
   const [roomDesc, setRoomDesc] = useState('');
   const [showReport, setShowReport] = useState(false);
-  const [msgModal, setMsgModal] = useState(null); // { nombre, apellido, puesto, sala }
+  const [msgModal, setMsgModal] = useState(null);
   const [copied, setCopied] = useState(false);
   const [activeRoom, setActiveRoom] = useState(null);
-  const [showAddEquip, setShowAddEquip] = useState(null); // roomId
+  const [showAddEquip, setShowAddEquip] = useState(null);
   const [showAddStaff, setShowAddStaff] = useState(null);
-  const [selectedEquip, setSelectedEquip] = useState({}); // { [equipId]: cantidad }
+  const [selectedEquip, setSelectedEquip] = useState({});
   const [equipSearch, setEquipSearch] = useState('');
   const [staffForm, setStaffForm] = useState({ user_id: '', puesto: '' });
+
+  // Photos state
+  const [photos, setPhotos] = useState([]);
+  const [photoLoading, setPhotoLoading] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [photoCaption, setPhotoCaption] = useState('');
+  const [showPhotoUpload, setShowPhotoUpload] = useState(false);
+  const [lightboxPhoto, setLightboxPhoto] = useState(null);
+  const photoFileRef = useRef(null);
+
+  // Checkout dropdown state
+  const [checkoutOpen, setCheckoutOpen] = useState(null); // equipment id
+
+  const loadPhotos = () => {
+    setPhotoLoading(true);
+    getEventPhotos(id)
+      .then(res => setPhotos(res.data))
+      .catch(() => {})
+      .finally(() => setPhotoLoading(false));
+  };
 
   const load = () => {
     Promise.all([
@@ -381,7 +281,19 @@ export default function EventDetail() {
       setUsers(usersRes.data);
     }).catch(console.error).finally(() => setLoading(false));
   };
-  useEffect(load, [id]);
+
+  useEffect(() => {
+    load();
+    loadPhotos();
+  }, [id]);
+
+  // Close checkout dropdown on outside click
+  useEffect(() => {
+    if (!checkoutOpen) return;
+    const handler = () => setCheckoutOpen(null);
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [checkoutOpen]);
 
   const handleUpdateEvent = async () => {
     try {
@@ -418,18 +330,20 @@ export default function EventDetail() {
       toast.success(`${items.length} equipo${items.length > 1 ? 's' : ''} asignado${items.length > 1 ? 's' : ''}`);
       setShowAddEquip(null); setSelectedEquip({}); setEquipSearch('');
       load();
-    } catch { toast.error('Error al asignar equipos'); }
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Error al asignar equipos');
+    }
   };
 
-  const toggleEquip = (id) => {
+  const toggleEquip = (eqId) => {
     setSelectedEquip(prev => {
-      if (prev[id]) { const n = { ...prev }; delete n[id]; return n; }
-      return { ...prev, [id]: 1 };
+      if (prev[eqId]) { const n = { ...prev }; delete n[eqId]; return n; }
+      return { ...prev, [eqId]: 1 };
     });
   };
 
-  const handleRemoveEquip = async (id) => {
-    try { await removeRoomEquipment(id); load(); }
+  const handleRemoveEquip = async (eqId) => {
+    try { await removeRoomEquipment(eqId); load(); }
     catch { toast.error('Error'); }
   };
 
@@ -443,9 +357,53 @@ export default function EventDetail() {
     } catch { toast.error('Error al asignar personal'); }
   };
 
-  const handleRemoveStaff = async (id) => {
-    try { await removeRoomStaff(id); load(); }
+  const handleRemoveStaff = async (staffId) => {
+    try { await removeRoomStaff(staffId); load(); }
     catch { toast.error('Error'); }
+  };
+
+  const handleCheckoutChange = async (eqId, newStatus) => {
+    try {
+      await updateEquipmentCheckout(eqId, {
+        checkout_status: newStatus,
+        fecha_entrega: newStatus === 'entregado' ? new Date().toISOString().slice(0, 10) : null,
+        fecha_devolucion: newStatus === 'devuelto' ? new Date().toISOString().slice(0, 10) : null,
+      });
+      toast.success(`Estado actualizado: ${CHECKOUT_LABELS[newStatus]}`);
+      setCheckoutOpen(null);
+      load();
+    } catch { toast.error('Error al actualizar estado'); }
+  };
+
+  const handlePhotoUpload = async (e) => {
+    e.preventDefault();
+    const file = photoFileRef.current?.files[0];
+    if (!file) return;
+    setUploadingPhoto(true);
+    const fd = new FormData();
+    fd.append('photo', file);
+    if (photoCaption) fd.append('caption', photoCaption);
+    try {
+      await uploadEventPhoto(id, fd);
+      toast.success('Foto subida');
+      setShowPhotoUpload(false);
+      setPhotoCaption('');
+      if (photoFileRef.current) photoFileRef.current.value = '';
+      loadPhotos();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Error al subir foto');
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  const handleDeletePhoto = async (photoId) => {
+    if (!confirm('¿Eliminar esta foto?')) return;
+    try {
+      await deleteEventPhoto(photoId);
+      toast.success('Foto eliminada');
+      loadPhotos();
+    } catch { toast.error('Error al eliminar foto'); }
   };
 
   const buildMessage = ({ nombre, apellido, puesto, sala }) => {
@@ -478,6 +436,15 @@ export default function EventDetail() {
       setTimeout(() => setCopied(false), 2000);
     });
   };
+
+  // Compute operator's own assignments for the "Tu asignación" card
+  const myAssignments = !isAdmin && event?.rooms
+    ? event.rooms.flatMap(room =>
+        (room.staff || [])
+          .filter(st => st.user_id === user?.id)
+          .map(st => ({ sala: room.nombre, puesto: st.puesto }))
+      )
+    : [];
 
   if (loading) return <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 80 }}><span className="spinner" style={{ width: 32, height: 32 }} /></div>;
   if (!event) return <div>Evento no encontrado</div>;
@@ -519,6 +486,38 @@ export default function EventDetail() {
           </div>
         )}
       </div>
+
+      {/* FEATURE 6: Operator assignment card (personal users only) */}
+      {!isAdmin && myAssignments.length > 0 && (
+        <div style={{
+          background: 'linear-gradient(135deg, rgba(48,128,224,0.12) 0%, rgba(48,160,80,0.08) 100%)',
+          border: '1px solid rgba(48,128,224,0.35)',
+          borderRadius: 'var(--radius)',
+          padding: '16px 20px',
+          marginBottom: 24,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+            <Users size={16} color="#3080e0" />
+            <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.95rem', color: '#3080e0' }}>
+              Tu asignación en este evento
+            </span>
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+            {myAssignments.map((a, i) => (
+              <div key={i} style={{
+                background: 'rgba(48,128,224,0.1)',
+                border: '1px solid rgba(48,128,224,0.3)',
+                borderRadius: 10, padding: '10px 16px',
+              }}>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 4 }}>Sala</div>
+                <div style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: 6 }}>{a.sala}</div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 2 }}>Puesto</div>
+                <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#3080e0' }}>{a.puesto}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Edit modal */}
       {editingEvent && (
@@ -640,19 +639,90 @@ export default function EventDetail() {
               </div>
               {room.equipment?.length === 0 ? (
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>Sin equipos asignados</p>
-              ) : room.equipment?.map(eq => (
-                <div key={eq.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: 'var(--bg-elevated)', borderRadius: 8, marginBottom: 6 }}>
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{eq.equipo_nombre}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{eq.categoria} · x{eq.cantidad}</div>
+              ) : room.equipment?.map(eq => {
+                const cs = eq.checkout_status || 'pendiente';
+                const csColors = CHECKOUT_COLORS[cs] || CHECKOUT_COLORS.pendiente;
+                const CsIcon = CHECKOUT_ICONS[cs];
+                return (
+                  <div key={eq.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: 'var(--bg-elevated)', borderRadius: 8, marginBottom: 6 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{eq.equipo_nombre}</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{eq.categoria} · x{eq.cantidad}</div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                      {/* FEATURE 2: Checkout status badge */}
+                      {isAdmin ? (
+                        <div style={{ position: 'relative' }} onMouseDown={e => e.stopPropagation()}>
+                          <button
+                            onClick={() => setCheckoutOpen(checkoutOpen === eq.id ? null : eq.id)}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: 4,
+                              padding: '3px 9px', borderRadius: 20, cursor: 'pointer',
+                              border: `1px solid ${csColors.border}`,
+                              background: csColors.bg, color: csColors.color,
+                              fontSize: '0.72rem', fontWeight: 700,
+                            }}
+                          >
+                            {CsIcon && <CsIcon size={11} />}
+                            {CHECKOUT_LABELS[cs]}
+                          </button>
+                          {checkoutOpen === eq.id && (
+                            <div style={{
+                              position: 'absolute', right: 0, top: 'calc(100% + 4px)',
+                              background: 'var(--bg-card)', border: '1px solid var(--border)',
+                              borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+                              zIndex: 100, minWidth: 140, overflow: 'hidden',
+                            }}>
+                              {CHECKOUT_OPTS.map(opt => {
+                                const oc = CHECKOUT_COLORS[opt];
+                                const OIcon = CHECKOUT_ICONS[opt];
+                                return (
+                                  <button
+                                    key={opt}
+                                    onClick={() => handleCheckoutChange(eq.id, opt)}
+                                    style={{
+                                      display: 'flex', alignItems: 'center', gap: 8,
+                                      width: '100%', padding: '9px 14px',
+                                      background: cs === opt ? oc.bg : 'transparent',
+                                      color: cs === opt ? oc.color : 'var(--text-primary)',
+                                      border: 'none', cursor: 'pointer',
+                                      fontSize: '0.82rem', fontWeight: cs === opt ? 700 : 400,
+                                      textAlign: 'left',
+                                    }}
+                                    onMouseEnter={e => { if (cs !== opt) e.currentTarget.style.background = 'var(--bg-elevated)'; }}
+                                    onMouseLeave={e => { if (cs !== opt) e.currentTarget.style.background = 'transparent'; }}
+                                  >
+                                    {OIcon && <OIcon size={13} />}
+                                    {!OIcon && <span style={{ width: 13 }} />}
+                                    {CHECKOUT_LABELS[opt]}
+                                    {cs === opt && <Check size={12} style={{ marginLeft: 'auto' }} />}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <span style={{
+                          display: 'flex', alignItems: 'center', gap: 4,
+                          padding: '3px 9px', borderRadius: 20,
+                          border: `1px solid ${csColors.border}`,
+                          background: csColors.bg, color: csColors.color,
+                          fontSize: '0.72rem', fontWeight: 700,
+                        }}>
+                          {CsIcon && <CsIcon size={11} />}
+                          {CHECKOUT_LABELS[cs]}
+                        </span>
+                      )}
+                      {isAdmin && (
+                        <button className="btn-icon" style={{ width: 26, height: 26, color: 'var(--red)' }} onClick={() => handleRemoveEquip(eq.id)}>
+                          <Trash2 size={12} />
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  {isAdmin && (
-                    <button className="btn-icon" style={{ width: 26, height: 26, color: 'var(--red)' }} onClick={() => handleRemoveEquip(eq.id)}>
-                      <Trash2 size={12} />
-                    </button>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Staff */}
@@ -697,7 +767,172 @@ export default function EventDetail() {
         </div>
       ))}
 
-      {/* Modals: Add room */}
+      {/* FEATURE 3: Photos section */}
+      <div style={{ marginTop: 32, marginBottom: 8 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Camera size={18} color="var(--accent)" />
+            <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.1rem' }}>
+              Fotos del evento ({photos.length})
+            </h2>
+          </div>
+          <button className="btn btn-ghost btn-sm" onClick={() => setShowPhotoUpload(true)}>
+            <Upload size={14} /> Subir foto
+          </button>
+        </div>
+
+        {photoLoading ? (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: 32 }}>
+            <span className="spinner" style={{ width: 24, height: 24 }} />
+          </div>
+        ) : photos.length === 0 ? (
+          <div className="card empty-state" style={{ padding: '32px 20px' }}>
+            <Camera size={32} color="var(--text-muted)" style={{ margin: '0 auto 12px' }} />
+            <p>Sin fotos subidas aún.</p>
+          </div>
+        ) : (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
+            gap: 12,
+          }}>
+            {photos.map(photo => (
+              <div
+                key={photo.id}
+                style={{
+                  position: 'relative', borderRadius: 10, overflow: 'hidden',
+                  border: '1px solid var(--border)',
+                  background: 'var(--bg-elevated)',
+                  cursor: 'pointer',
+                  aspectRatio: '4/3',
+                }}
+                onClick={() => setLightboxPhoto(photo)}
+              >
+                <img
+                  src={getEventPhotoUrl(photo.id)}
+                  alt={photo.caption || photo.original_name}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                />
+                {/* Overlay on hover */}
+                <div style={{
+                  position: 'absolute', inset: 0,
+                  background: 'rgba(0,0,0,0.55)',
+                  opacity: 0, transition: 'opacity 0.15s',
+                  display: 'flex', flexDirection: 'column',
+                  justifyContent: 'flex-end', padding: 8,
+                }}
+                  className="photo-overlay"
+                  onMouseEnter={e => e.currentTarget.style.opacity = 1}
+                  onMouseLeave={e => e.currentTarget.style.opacity = 0}
+                >
+                  {photo.caption && (
+                    <div style={{ fontSize: '0.75rem', color: '#fff', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {photo.caption}
+                    </div>
+                  )}
+                  <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.7)' }}>
+                    {photo.uploader_nombre} {photo.uploader_apellido}
+                  </div>
+                  {(isAdmin || photo.uploaded_by === user?.id) && (
+                    <button
+                      style={{
+                        position: 'absolute', top: 6, right: 6,
+                        background: 'rgba(224,48,48,0.85)', border: 'none',
+                        borderRadius: 6, padding: 4, cursor: 'pointer', display: 'flex', color: '#fff',
+                      }}
+                      onClick={e => { e.stopPropagation(); handleDeletePhoto(photo.id); }}
+                      title="Eliminar foto"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Photo upload modal */}
+      {showPhotoUpload && (
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowPhotoUpload(false)}>
+          <div className="modal" style={{ maxWidth: 420 }}>
+            <div className="modal-header">
+              <h2>Subir foto</h2>
+              <button className="btn-icon" onClick={() => setShowPhotoUpload(false)}>✕</button>
+            </div>
+            <form onSubmit={handlePhotoUpload}>
+              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div className="form-group">
+                  <label className="form-label">Imagen *</label>
+                  <input
+                    ref={photoFileRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    required
+                    className="form-control"
+                  />
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                    JPG, PNG o WEBP · máx. 10 MB
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Descripción (opcional)</label>
+                  <input
+                    className="form-control"
+                    value={photoCaption}
+                    onChange={e => setPhotoCaption(e.target.value)}
+                    placeholder="Ej: Sala principal, ángulo frontal..."
+                  />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-ghost" onClick={() => setShowPhotoUpload(false)}>Cancelar</button>
+                <button type="submit" className="btn btn-primary" disabled={uploadingPhoto}>
+                  {uploadingPhoto ? <span className="spinner" style={{ width: 14, height: 14 }} /> : <><Upload size={14} /> Subir</>}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Lightbox */}
+      {lightboxPhoto && (
+        <div
+          className="modal-overlay"
+          style={{ background: 'rgba(0,0,0,0.85)', zIndex: 2000 }}
+          onClick={() => setLightboxPhoto(null)}
+        >
+          <div
+            style={{ position: 'relative', maxWidth: '90vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column', alignItems: 'center' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <button
+              className="btn-icon"
+              style={{ position: 'absolute', top: -36, right: 0, color: '#fff' }}
+              onClick={() => setLightboxPhoto(null)}
+            >
+              <X size={20} />
+            </button>
+            <img
+              src={getEventPhotoUrl(lightboxPhoto.id)}
+              alt={lightboxPhoto.caption || lightboxPhoto.original_name}
+              style={{ maxWidth: '90vw', maxHeight: '80vh', objectFit: 'contain', borderRadius: 10 }}
+            />
+            {lightboxPhoto.caption && (
+              <div style={{ color: '#fff', marginTop: 12, fontSize: '0.9rem', textAlign: 'center' }}>
+                {lightboxPhoto.caption}
+              </div>
+            )}
+            <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.75rem', marginTop: 4 }}>
+              {lightboxPhoto.uploader_nombre} {lightboxPhoto.uploader_apellido} · {lightboxPhoto.original_name}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Add room */}
       {showAddRoom && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowAddRoom(false)}>
           <div className="modal" style={{ maxWidth: 420 }}>
@@ -722,14 +957,13 @@ export default function EventDetail() {
         </div>
       )}
 
-      {/* Modal: Add equipment — inventory browser */}
+      {/* Modal: Add equipment */}
       {showAddEquip && (() => {
         const q = equipSearch.toLowerCase();
         const filtered = q
           ? inventory.filter(eq => eq.nombre.toLowerCase().includes(q) || (eq.marca || '').toLowerCase().includes(q) || (eq.modelo || '').toLowerCase().includes(q))
           : inventory;
 
-        // Group by category
         const groups = filtered.reduce((acc, eq) => {
           const cat = eq.categoria_nombre || 'Sin categoría';
           if (!acc[cat]) acc[cat] = [];
@@ -746,8 +980,6 @@ export default function EventDetail() {
                 <h2>Agregar equipos a la sala</h2>
                 <button className="btn-icon" onClick={() => { setShowAddEquip(null); setSelectedEquip({}); setEquipSearch(''); }}>✕</button>
               </div>
-
-              {/* Search */}
               <div style={{ padding: '14px 24px', borderBottom: '1px solid var(--border)' }}>
                 <div className="search-bar" style={{ width: '100%' }}>
                   <Package size={15} color="var(--text-muted)" />
@@ -760,8 +992,6 @@ export default function EventDetail() {
                   />
                 </div>
               </div>
-
-              {/* Inventory list */}
               <div style={{ flex: 1, overflowY: 'auto', padding: '16px 24px' }}>
                 {Object.keys(groups).length === 0 ? (
                   <div className="empty-state"><p>Sin resultados</p></div>
@@ -823,7 +1053,6 @@ export default function EventDetail() {
                   </div>
                 ))}
               </div>
-
               <div className="modal-footer">
                 <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginRight: 'auto' }}>
                   {totalSelected > 0 ? `${totalSelected} equipo${totalSelected > 1 ? 's' : ''} seleccionado${totalSelected > 1 ? 's' : ''}` : 'Ningún equipo seleccionado'}

@@ -47,6 +47,7 @@ export const deleteRoom = (roomId) => api.delete(`/events/rooms/${roomId}`);
 // Room equipment
 export const addRoomEquipment = (roomId, data) => api.post(`/events/rooms/${roomId}/equipment`, data);
 export const removeRoomEquipment = (id) => api.delete(`/events/rooms/equipment/${id}`);
+export const updateEquipmentCheckout = (id, data) => api.put(`/events/rooms/equipment/${id}/checkout`, data);
 
 // Room staff
 export const addRoomStaff = (roomId, data) => api.post(`/events/rooms/${roomId}/staff`, data);
@@ -75,4 +76,20 @@ export const deleteTutorial = (id) => api.delete(`/tutorials/${id}`);
 export const getTutorialFileUrl = (id) => {
   const token = localStorage.getItem('token');
   return `/api/tutorials/${id}/file${token ? `?token=${token}` : ''}`;
+};
+
+// Notifications
+export const getNotifications = () => api.get('/notifications');
+
+// Stats
+export const getEquipmentStats = () => api.get('/stats/equipment');
+export const getOperatorStats = () => api.get('/stats/operators');
+
+// Event Photos
+export const getEventPhotos = (eventId) => api.get(`/events/${eventId}/photos`);
+export const uploadEventPhoto = (eventId, formData) => api.post(`/events/${eventId}/photos`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+export const deleteEventPhoto = (id) => api.delete(`/events/photos/${id}`);
+export const getEventPhotoUrl = (id) => {
+  const token = localStorage.getItem('token');
+  return `/api/events/photos/${id}/file${token ? `?token=${token}` : ''}`;
 };

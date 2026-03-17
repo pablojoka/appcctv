@@ -12,6 +12,7 @@ import Inventory from './pages/Inventory';
 import Personnel from './pages/Personnel';
 import Reports from './pages/Reports';
 import Tutorials from './pages/Tutorials';
+import Stats from './pages/Stats';
 
 function PrivateRoute({ children, adminOnly = false }) {
   const { user } = useAuth();
@@ -33,6 +34,7 @@ function AppRoutes() {
         <Route path="personnel" element={<PrivateRoute adminOnly><Personnel /></PrivateRoute>} />
         <Route path="reports" element={<Reports />} />
         <Route path="tutorials" element={<Tutorials />} />
+        <Route path="stats" element={<PrivateRoute adminOnly><Stats /></PrivateRoute>} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

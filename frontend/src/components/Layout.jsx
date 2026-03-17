@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
-  LayoutDashboard, Calendar, Package, Users, FileText, BookOpen, LogOut, Menu, X
+  LayoutDashboard, Calendar, Package, Users, FileText, BookOpen, LogOut, Menu, X, BarChart2
 } from 'lucide-react';
+import NotificationBell from './NotificationBell';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard', exact: true },
@@ -12,6 +13,7 @@ const navItems = [
   { to: '/personnel', icon: Users, label: 'Personal', adminOnly: true },
   { to: '/reports', icon: FileText, label: 'Reportes' },
   { to: '/tutorials', icon: BookOpen, label: 'Tutoriales' },
+  { to: '/stats', icon: BarChart2, label: 'Estadísticas', adminOnly: true },
 ];
 
 export default function Layout() {
@@ -37,9 +39,12 @@ export default function Layout() {
               CCTV/<span style={{ color: 'var(--accent)' }}>VMIX</span>
             </div>
           </div>
-          <button className="btn-icon sidebar-close" onClick={closeSidebar}>
-            <X size={16} />
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <NotificationBell />
+            <button className="btn-icon sidebar-close" onClick={closeSidebar}>
+              <X size={16} />
+            </button>
+          </div>
         </div>
 
         {/* Nav */}
@@ -98,7 +103,7 @@ export default function Layout() {
               CCTV/<span style={{ color: 'var(--accent)' }}>VMIX</span>
             </div>
           </div>
-          <div style={{ width: 36 }} />
+          <NotificationBell />
         </div>
 
         <div className="layout-content">
