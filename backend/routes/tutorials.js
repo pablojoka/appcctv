@@ -36,7 +36,7 @@ router.get('/:id/file', (req, res) => {
   const jwt = require('jsonwebtoken');
   const token = req.headers.authorization?.split(' ')[1] || req.query.token;
   if (!token) return res.status(401).json({ error: 'Token requerido' });
-  try { jwt.verify(token, process.env.JWT_SECRET || 'congress_secret_2024'); }
+  try { jwt.verify(token, process.env.JWT_SECRET || 'congress_cctv_secret_2024'); }
   catch { return res.status(401).json({ error: 'Token inválido' }); }
 
   const tutorial = db.prepare('SELECT * FROM tutorials WHERE id = ?').get(req.params.id);
