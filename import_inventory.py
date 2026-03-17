@@ -97,7 +97,7 @@ def main():
         print(f"\n📋 Hoja: {sheet_name} → categoría: {cat_nombre} ({len(df)} filas)")
 
         for _, row in df.iterrows():
-            nombre_raw = clean(row.get("Desc comercial")) or clean(row.get("Desc técnica"))
+            nombre_raw = clean(row.get("Desc técnica")) or clean(row.get("Desc comercial"))
             if not nombre_raw:
                 total_skipped += 1
                 continue
